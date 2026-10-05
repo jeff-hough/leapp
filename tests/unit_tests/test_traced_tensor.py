@@ -1299,6 +1299,55 @@ class TestTracedTensor(unittest.TestCase):
                 self.assertIsNone(y.output_port)
                 self.assertTrue(torch.equal(y.tensor, torch.tensor([0.0, 4.0, 0.0])))
 
+    def test_inplace_index_add_preserves_receiver_and_exports(self):
+        """Discarded additions accumulate on the receiver with runtime operands."""
+        for traced_index in (False, True):
+            with self.subTest(traced_index=traced_index):
+                ctx = TracedTensorNode(name="test", node_index=0)
+                x = ctx.create_input(torch.zeros(3), name="x")
+                source = ctx.create_input(torch.tensor([10., 20.]), name="source")
+                index = torch.tensor([0, 2])
+                if traced_index:
+                    index = ctx.create_input(index, name="index")
+
+                self.assertIs(x.index_add_(0, index, source), x)
+                self.assertTrue(torch.equal(x.tensor, torch.tensor([10., 0., 20.])))
+                x.index_add_(0, index, source, alpha=2)
+                self.assertTrue(torch.equal(x.tensor, torch.tensor([30., 0., 60.])))
+                ctx.compile_trace({'out': x})
+
+                runtime_x = torch.tensor([1., 2., 3.])
+                runtime_source = torch.tensor([4., 5.])
+                runtime_index = torch.tensor([1, 1]) if traced_index else index
+                expected = runtime_x.clone()
+                expected.index_add_(0, runtime_index, runtime_source)
+                expected.index_add_(0, runtime_index, runtime_source, alpha=2)
+                inputs = (runtime_x, runtime_source)
+                if traced_index:
+                    inputs += (runtime_index,)
+                self.validate_export(
+                    ctx.m, inputs, expected,
+                    test_name="inplace_index_add",
+                    verify_legacy_onnx=False,
+                    verify_dynamo_onnx=True,
+                )
+
+    def test_inplace_index_add_transit_invalidates_port(self):
+        """Outside capture, native mutation preserves identity and clears provenance."""
+        ctx = TracedTensorNode(name="test", node_index=0)
+        x = ctx.create_input(torch.zeros(2, 3), name="x")
+        index = ctx.create_input(torch.tensor([0, 2]), name="index")
+        source = ctx.create_input(torch.tensor([[1., 2.], [3., 4.]]), name="source")
+        ctx.compile_trace({'x': x, 'index': index, 'source': source})
+        ctx.publish_output_port(x, "x")
+        self.assertFalse(x.is_tracing)
+        self.assertEqual(x.output_port, "x")
+
+        expected = x.tensor.clone().index_add_(1, index.tensor, source.tensor, alpha=2)
+        self.assertIs(x.index_add_(1, index, source, alpha=2), x)
+        self.assertTrue(torch.equal(x.tensor, expected))
+        self.assertIsNone(x.output_port)
+
     def test_inplace_method_fill_discarded_result(self):
         """Test that discarded in-place method results update the original proxy."""
         ctx = TracedTensorNode(name="test", node_index=0)

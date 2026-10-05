@@ -889,6 +889,21 @@ class TracedTensor(TracedData, torch.Tensor, metaclass=_TracedTensorMeta):
         """In-place power method."""
         return self._apply_inplace(torch.pow, "pow_", exponent)
 
+    def index_add_(self, dim, index, source, *, alpha=1):
+        """Accumulate into this receiver while recording a functional update."""
+        if not self.is_tracing:
+            self.tensor.index_add_(
+                dim,
+                TracedTensor.unwrap_traced_tensor(index),
+                TracedTensor.unwrap_traced_tensor(source),
+                alpha=alpha,
+            )
+            self._output_port = None
+            return self
+
+        # Descriptor conversion would otherwise discard the receiver mutation.
+        return self.copy_(torch.index_add(self, dim, index, source, alpha=alpha))
+
     def copy_(self, src, non_blocking=False):
         """Copy ``src`` into this tensor and record a full functional write."""
         if self._shed_replaced_graph():
