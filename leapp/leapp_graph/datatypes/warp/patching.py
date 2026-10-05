@@ -163,7 +163,7 @@ class WarpPatchBackend:
 
     def close_warp_segment(self, *_args: Any, **_kwargs: Any) -> None:
         """Request closure of the active unowned Warp segment."""
-        if self._session is None:
+        if self._session is None or self._session.active_warp_op is None:
             return
         if self._session.paused:
             return

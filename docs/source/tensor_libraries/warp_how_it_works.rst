@@ -111,8 +111,11 @@ new one.
    * - Cause
      - What happens
    * - A recorded torch operation
-     - Adding a node to the traced graph closes the segment first. One
-       ``torch.clamp()`` in the middle of a Warp block splits it in two.
+     - Traced Torch operations close the segment before executing or reading
+       their graph inputs, including views such as reshape and slicing that
+       launch no CUDA work. This ensures an existing Torch alias reads the
+       finalized Warp output. One ``torch.clamp()`` in the middle of a Warp
+       block splits it in two.
    * - Reading data out of Warp
      - ``wp.to_torch()`` and ``wp.array.numpy()`` end the segment.
        ``wp.from_torch()`` and ``wp.from_numpy()`` do not.

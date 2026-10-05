@@ -320,6 +320,15 @@ class TracedTensor(TracedData, torch.Tensor, metaclass=_TracedTensorMeta):
     # Torch Function Interception
     # =========================================================================
 
+    @staticmethod
+    def _close_warp_segment():
+        # Lazy to avoid the patching -> datatypes -> TracedTensor import cycle.
+        from ..patching import get_warp_backend
+
+        backend = get_warp_backend()
+        if backend is not None:
+            backend.close_warp_segment()
+
     @classmethod
     def _promote_plain_tensor(cls, target, name, context, proxy):
         """Attach tracing state to an existing plain tensor object."""
@@ -497,6 +506,10 @@ class TracedTensor(TracedData, torch.Tensor, metaclass=_TracedTensorMeta):
             # Fallback to default behavior if no TracedTensor found
             return NotImplemented
 
+        # Finalize shared output proxies before executing Torch or reading its
+        # arguments' proxies. Graph insertion is too late: the arguments have
+        # already been extracted, and view-only ops emit no CUDA callback.
+        cls._close_warp_segment()
 
         # Handles situations where the destination is a plain tensor but a traced object 
         # is in the key or value.
@@ -906,6 +919,7 @@ class TracedTensor(TracedData, torch.Tensor, metaclass=_TracedTensorMeta):
 
     def copy_(self, src, non_blocking=False):
         """Copy ``src`` into this tensor and record a full functional write."""
+        self._close_warp_segment()
         if self._shed_replaced_graph():
             return self.copy_(src, non_blocking=non_blocking)
         real_value = TracedTensor.unwrap_traced_tensor(src)
@@ -973,6 +987,7 @@ class TracedTensor(TracedData, torch.Tensor, metaclass=_TracedTensorMeta):
         Tuple/mixed traced indices are converted to FX proxies and recorded as
         operator.getitem so augmented assignment can write the result back.
         """
+        self._close_warp_segment()
         # Check for boolean mask indexing with TracedTensor
         if isinstance(key, TracedTensor):
             result_tensor = self.tensor[key.tensor]
@@ -1046,6 +1061,7 @@ class TracedTensor(TracedData, torch.Tensor, metaclass=_TracedTensorMeta):
         ``_handle_plain_assignment`` promotes them and installs a destination
         constant as this tensor's proxy.
         """
+        self._close_warp_segment()
         if self._shed_replaced_graph():
             self[key] = value
             return

@@ -912,6 +912,35 @@ class TestWarpAutomaticSegmentDetection(WarpTestCase, LEAPPFunctionalTestBase):
         leapp.compile_graph(visualize=False)
         self._assert_compiled_segments(node, 2)
 
+    def test_torch_view_consumes_pending_warp_output(self):
+        leapp.start(name=self.TEST_GRAPH_NAME)
+        source = torch.arange(6.0, device=self.DEVICE)
+        for _ in range(2):
+            tensor = annotate.input_tensors(self.NODE_NAME, {"in_a": source})
+            # Keep the caller's input unchanged across discovery and capture.
+            tensor = tensor * 2
+            array = wp.from_torch(tensor)
+            self._launch_increment_in_place(array)
+            # No wp.to_torch/readback here: Torch already aliases the output.
+            output = tensor.reshape(2, 3)[:, 1:].transpose(0, 1)
+            annotate.output_tensors(
+                self.NODE_NAME, {"out_a": output}, export_with="onnx"
+            )
+
+        node = annotate.get_nodes()[self.NODE_NAME]
+        leapp.stop()
+        leapp.compile_graph(visualize=False)
+        self._assert_compiled_segments(node, 1)
+        for offset in (0.0, 10.0):
+            values = source + offset
+            self.verify_inference_manager(
+                source_inputs={f"{self.NODE_NAME}/in_a": values},
+                source_outputs={
+                    f"{self.NODE_NAME}/out_a":
+                        (values * 2 + 1).reshape(2, 3)[:, 1:].transpose(0, 1)
+                },
+            )
+
     def test_torch_roundtrip_boundary_creates_two_segments(self):
         def operation(values):
             values = self._launch_add(values, 1.0)
