@@ -1,6 +1,8 @@
-# State and deployment semantics
+# State and episode lifecycle
 
-Read this for recurrent policies, history windows, episode resets, robot-facing ports, or action chunks. Online references: [state](https://nvidia-isaac.github.io/leapp/guides/graph.html), [API](https://nvidia-isaac.github.io/leapp/api/index.html), [semantics](https://nvidia-isaac.github.io/leapp/semantics/usage.html), [axis names](https://nvidia-isaac.github.io/leapp/semantics/kind_element_names.html), [temporal axes](https://nvidia-isaac.github.io/leapp/semantics/temporal.html), [runtime](https://nvidia-isaac.github.io/leapp/leapp_runtime.html).
+Read this for recurrent policies, history windows, or episode resets. State controls values carried between calls; semantic metadata describes tensor meaning and is optional independently of state. See [deployment semantics](semantics.md) only when a consumer needs that metadata.
+
+Online references: [state](https://nvidia-isaac.github.io/leapp/guides/graph.html), [API](https://nvidia-isaac.github.io/leapp/api/index.html), [runtime](https://nvidia-isaac.github.io/leapp/leapp_runtime.html).
 
 ## Explicit state across an episode
 
@@ -66,41 +68,3 @@ annotate.module("pipeline", model, buffer_names=["h_state", "encoder.running_mea
 Replace the example names with real registered buffers; omit `buffer_names` to track all. Reassigned buffers become feedback; read-only buffers are constants. Plain attributes and in-place updates such as `self.h.copy_(next_h)` are not captured as automatic state updates. Use explicit state annotations where appropriate rather than rewriting the model or assuming a pure function patch captures mutation.
 
 Explicit state/module feedback can be declared in one trace. **Inferred cross-node feedback** needs at least two graph iterations in the same session. Validate `pipeline.feedback_flow` and `pipeline.initial_values`; carry the referenced safetensors file with the bundle. Use `manager.feedback_inputs` and `set_input_value(node, port, value)` to inspect/seed feedback. A fresh manager is the portable episode-reset recipe; if using an installed `reset()` method, verify its contract—buffer reset does not necessarily reset private state inside model objects.
-
-## Semantic deployment contract
-
-`TensorSemantics` works with `input_tensors` / `output_tensors`, not `method`. Pass one object or a homogeneous list directly. Do not put semantic wrappers inside a dict. Keep names unique per input/output set.
-
-This complete example names joint order and a four-step action chunk within a single model. In a real project, use the existing action computation, actual joint names, action quantity, and timing:
-
-```python
-import torch
-import leapp
-from leapp import annotate, TensorSemantics, TemporalAxis, GraphConfigs
-from leapp import InputKindEnum, OutputKindEnum
-
-joint_names = ["hip", "knee", "ankle"]
-leapp.start("semantic_graph")
-try:
-    q = annotate.input_tensors("pipeline", TensorSemantics(
-        "joint_pos", torch.randn(3), kind=InputKindEnum.JOINT_POSITION,
-        element_names=[joint_names], extra={"units": "rad"},
-    ))
-    actions = q.unsqueeze(0).repeat(4, 1)
-    annotate.output_tensors("pipeline", TensorSemantics(
-        "joint_targets", actions, kind=OutputKindEnum.JOINT_POSITION,
-        element_names=[TemporalAxis(period_ms=20), joint_names],
-        extra={"units": "rad"},
-    ), export_with="onnx")
-finally:
-    leapp.stop()
-leapp.compile_graph(visualize=False, validate=True, strict=True,
-                    graph_configs=GraphConfigs(frequency=50))
-```
-
-- Match `kind` to observed state, commanded references, or output targets. A custom string is allowed when no standard kind fits; confirm consumer support.
-- `element_names` is an outer axis list with per-axis name lists; `None` leaves an axis unnamed. For `[batch, joints]`, use `[None, joint_names]`. Names must reflect actual ordering rather than a guessed robot convention.
-- Put at most one `TemporalAxis` directly in that outer list. LEAPP emits `__temporal_axis__` plus `temporal_period_ms`; do not write the reserved sentinel yourself. The consumer must interpret how the chunk is applied.
-- `GraphConfigs(frequency=...)` is in Hz; `TemporalAxis(period_ms=...)` is in ms. They are not automatically validated against one another; neither makes `InferenceManager` schedule calls in real time.
-- `extra` entries are flattened into the tensor YAML mapping. Units, frames, and external IDs are project-specific fields, not automatic conversion or routing instructions. Agree on them with the consumer and avoid collisions with built-ins such as `name`, `shape`, `dtype`, or `kind`.
-- Inspect generated YAML for expected names, order, shapes, temporal metadata, and graph configs, then verify that the deployment runtime consumes that contract.
