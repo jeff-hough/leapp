@@ -44,6 +44,26 @@ traced graph into portable artifacts.
 
    Read usage guide
 
+Use LEAPP with a Coding Agent
+=============================
+
+Download the LEAPP integration skill to help your coding agent annotate,
+export, and validate a pipeline. The ZIP includes ``SKILL.md`` and supporting
+guides for function patches, state, deployment semantics, and Warp.
+
+.. raw:: html
+
+   <p>
+     <a class="sd-btn sd-btn-primary sd-rounded-1" href="_downloads/leapp-integrate.zip" download="leapp-integrate.zip">
+       Download agent skill (ZIP)
+     </a>
+   </p>
+
+Extract the ZIP and give your agent the ``leapp-integrate/SKILL.md`` file,
+or place the ``leapp-integrate`` folder in your agent's skills directory.
+Keep the ``references`` folder beside ``SKILL.md`` so the linked guides remain
+available. You do not need a local LEAPP checkout to use the skill.
+
 Is LEAPP a Fit?
 ===============
 
