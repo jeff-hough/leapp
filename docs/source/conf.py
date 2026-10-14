@@ -4,6 +4,8 @@
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 sys.path.insert(0, os.path.abspath('../..'))
 
@@ -93,3 +95,22 @@ html_extra_path = ['_redirects']
 html_css_files = ['css/leapp.css']
 
 html_last_updated_fmt = '%b %d, %Y'
+
+
+def package_agent_skill(app, exception):
+    """Bundle the repository skill and its references with the published HTML."""
+    if exception is not None or app.builder.format != 'html':
+        return
+
+    repo_root = Path(__file__).resolve().parents[2]
+    download_dir = Path(app.outdir) / '_downloads'
+    download_dir.mkdir(parents=True, exist_ok=True)
+    files = [repo_root / 'SKILL.md', *sorted((repo_root / 'references').rglob('*.md'))]
+    with ZipFile(download_dir / 'leapp-integrate.zip', 'w', ZIP_DEFLATED) as bundle:
+        for source in files:
+            name = (Path('leapp-integrate') / source.relative_to(repo_root)).as_posix()
+            bundle.writestr(name, source.read_bytes())
+
+
+def setup(app):
+    app.connect('build-finished', package_agent_skill)

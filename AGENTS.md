@@ -7,8 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 
 Instructions for coding agents working **in** nvidia-isaac/leapp: where
 code lives, which tests to run, and which skill to load. This is not a
-guide for annotating a downstream policy; that lives in
-`docs/source/` and at https://nvidia-isaac.github.io/leapp/
+guide for annotating a downstream policy; read [SKILL.md](SKILL.md) for
+that workflow, with API documentation in `docs/source/` and at
+https://nvidia-isaac.github.io/leapp/
 
 Python 3.10+ and PyTorch 2.6.0+. Visualization extras install only on
 3.11+. Environment is a local venv (typically `uv`), never conda.
