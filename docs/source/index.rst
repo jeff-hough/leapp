@@ -4,14 +4,24 @@ LEAPP
 
 .. raw:: html
 
-   <p class="leapp-github-link">
-     <a href="https://github.com/nvidia-isaac/leapp" aria-label="LEAPP on GitHub">
-       <img src="_static/images/icons/github.png" alt="" aria-hidden="true" />
-       nvidia-isaac/leapp
-     </a>
-   </p>
-
-**Lightweight Export Annotations for Policy Pipelines**
+   <header class="leapp-hero">
+     <div class="leapp-hero-copy">
+       <h1>LEAPP</h1>
+       <p>Lightweight Export Annotations<br />for Policy Pipelines</p>
+     </div>
+     <div class="leapp-hero-action">
+       <a class="leapp-hero-button sd-btn sd-btn-primary" href="https://github.com/nvidia-isaac/leapp" aria-label="LEAPP repository on GitHub">
+         <img src="_static/images/icons/github.png" alt="" aria-hidden="true" />
+         GitHub repository
+       </a>
+       <a class="leapp-hero-button sd-btn sd-btn-primary" href="_downloads/leapp-integrate.zip" download="leapp-integrate.zip" title="Download the skill and supporting guides as a ZIP">
+         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+           <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
+         </svg>
+         Download agent skill
+       </a>
+     </div>
+   </header>
 
 Export the whole policy pipeline, not just the model weights.
 
@@ -44,25 +54,13 @@ traced graph into portable artifacts.
 
    Read usage guide
 
-Use LEAPP with a Coding Agent
-=============================
+.. dropdown:: Using the agent skill
 
-Download the LEAPP integration skill to help your coding agent annotate,
-export, and validate a pipeline. The ZIP includes ``SKILL.md`` and supporting
-guides for function patches, state, deployment semantics, and Warp.
-
-.. raw:: html
-
-   <p>
-     <a class="sd-btn sd-btn-primary sd-rounded-1" href="_downloads/leapp-integrate.zip" download="leapp-integrate.zip">
-       Download agent skill (ZIP)
-     </a>
-   </p>
-
-Extract the ZIP and give your agent the ``leapp-integrate/SKILL.md`` file,
-or place the ``leapp-integrate`` folder in your agent's skills directory.
-Keep the ``references`` folder beside ``SKILL.md`` so the linked guides remain
-available. You do not need a local LEAPP checkout to use the skill.
+   The download includes ``SKILL.md`` and supporting guides for function patches,
+   state, deployment semantics, and Warp. Extract the ZIP and give your agent
+   ``leapp-integrate/SKILL.md``, or place the ``leapp-integrate`` folder in your
+   agent's skills directory. Keep the ``references`` folder beside ``SKILL.md``
+   so the linked guides remain available. No local LEAPP checkout is needed.
 
 Is LEAPP a Fit?
 ===============

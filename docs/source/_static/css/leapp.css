@@ -140,45 +140,77 @@ a.reference.external::after {
 }
 
 
-h1:has(+ .leapp-github-link) {
-    display: inline-block;
-    margin-right: 0.8rem;
+/* Keep the Sphinx document title for navigation; the banner renders its heading. */
+h1:has(+ .leapp-hero) {
+    display: none;
 }
 
-.leapp-github-link {
-    display: inline-flex;
-    margin: 0 0 1rem;
-    vertical-align: 0.25rem;
-}
-
-.leapp-github-link a {
+.leapp-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    color: #0969da;
-    display: inline-flex;
-    font-family: inherit;
-    font-size: 0.95rem;
+    gap: 2rem;
+    margin: 0 0 2rem;
+    padding: 0 0 1.75rem;
+    border-bottom: 1px solid var(--pst-color-border, #d1d5da);
+}
+
+.leapp-hero h1 {
+    margin: 0 0 0.65rem;
+    font-size: clamp(2.5rem, 5vw, 3rem);
     font-weight: 700;
-    gap: 0.32rem;
+    line-height: 1.1;
+}
+
+.leapp-hero-copy > p {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.55;
+}
+
+.leapp-hero-action {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.leapp-hero-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0.8rem 1.1rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
     text-decoration: none;
+    white-space: nowrap;
 }
 
-.leapp-github-link a:hover {
-    color: #054da7;
-    text-decoration: underline;
+.leapp-hero-button img,
+.leapp-hero-button svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
 }
 
-.leapp-github-link img {
-    height: 0.95rem;
-    width: 0.95rem;
+.leapp-hero-button img {
+    filter: brightness(0) invert(1);
 }
 
-@media (max-width: 520px) {
-    h1:has(+ .leapp-github-link),
-    .leapp-github-link {
-        display: block;
+.leapp-hero a:focus-visible {
+    outline: 3px solid var(--pst-color-primary, #006eaf);
+    outline-offset: 4px;
+}
+
+@media (max-width: 700px) {
+    .leapp-hero {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.5rem;
     }
 
-    .leapp-github-link {
-        margin: -0.4rem 0 1rem;
+    .leapp-hero-button {
+        white-space: normal;
     }
 }

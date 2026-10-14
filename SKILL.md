@@ -20,7 +20,8 @@ Start with the [online LEAPP documentation](https://nvidia-isaac.github.io/leapp
 | Public signatures and annotation patterns | [API](https://nvidia-isaac.github.io/leapp/api/index.html), [nodes](https://nvidia-isaac.github.io/leapp/guides/nodes.html) |
 | Export formats, parameters, prebuilt models | [Export](https://nvidia-isaac.github.io/leapp/guides/export.html) |
 | Unsupported functions and trace loss | [Function patches](https://nvidia-isaac.github.io/leapp/guides/patching.html), [Torch limitations](https://nvidia-isaac.github.io/leapp/tensor_libraries/torch_limitations.html), [NumPy limitations](https://nvidia-isaac.github.io/leapp/tensor_libraries/limitations.html) |
-| State and metadata | [State](https://nvidia-isaac.github.io/leapp/guides/graph.html), [semantics](https://nvidia-isaac.github.io/leapp/semantics/usage.html), [temporal axes](https://nvidia-isaac.github.io/leapp/semantics/temporal.html) |
+| State and resets | [State](https://nvidia-isaac.github.io/leapp/guides/graph.html) |
+| Optional deployment metadata | [Semantics](https://nvidia-isaac.github.io/leapp/semantics/usage.html), [standard kinds](https://nvidia-isaac.github.io/leapp/semantics/kind_element_names.html), [temporal axes](https://nvidia-isaac.github.io/leapp/semantics/temporal.html) |
 | Validation and deployment | [Debugging](https://nvidia-isaac.github.io/leapp/guides/debugging.html), [runtime](https://nvidia-isaac.github.io/leapp/leapp_runtime.html), [bundle/YAML](https://nvidia-isaac.github.io/leapp/generated_configs.html) |
 | Warp | [Setup](https://nvidia-isaac.github.io/leapp/tensor_libraries/installation.html), [capture](https://nvidia-isaac.github.io/leapp/tensor_libraries/warp.html), [limitations](https://nvidia-isaac.github.io/leapp/tensor_libraries/warp_limitations.html) |
 
@@ -54,7 +55,7 @@ Avoid legacy private `annotate._method` for new integrations; investigate public
 
 ## Complete annotation and validation recipe
 
-This runnable stateless example keeps an original function unchanged, caches multiple trace samples, exports one model, and checks fresh inputs. Replace the illustrative function and sample generator with the application's existing compute and representative data. For mutable pipelines, isolate baseline inputs/state and reset both executions to the same initial state; see [state and deployment semantics](references/state-and-semantics.md).
+This runnable stateless example keeps an original function unchanged, caches multiple trace samples, exports one model, and checks fresh inputs. Replace the illustrative function and sample generator with the application's existing compute and representative data. For mutable pipelines, isolate baseline inputs/state and reset both executions to the same initial state; see [state and episode lifecycle](references/state.md).
 
 ```python
 import torch
@@ -131,7 +132,7 @@ Choose opset and optimizations for the actual runtime. Disabling validation, `sk
 
 ## State, constants, and loops
 
-For recurrent policies, history buffers, or episode resets, read [state and deployment semantics](references/state-and-semantics.md).
+For recurrent policies, history buffers, or episode resets, read [state and episode lifecycle](references/state.md).
 
 - `state_tensors` requires an existing node and a **flat dict of named Torch tensors**; nested state is unsupported. `update_state` must use declared names and preserve each state's shape and dtype. One entry returns a value; multiple entries return a tuple in insertion order.
 - Only states passed to `update_state()` become explicit feedback; an unupdated state remains a regular input. Keep evolving state distinct from frozen parameters and constants.
@@ -162,14 +163,11 @@ Calls in NumPy, SciPy, scikit-learn, scikit-image, OpenCV, or other libraries **
 
 Supported NumPy/Torch conversions such as `torch.from_numpy()` and `.numpy()` can preserve tracing with global patching enabled. Do not rewrite all NumPy code or treat every conversion as a trace break.
 
-## Semantic metadata
+## Optional deployment semantics
 
-For deployment-facing tensors, add known meaning with `TensorSemantics`: observed state versus output targets, real joint/feature order, and temporal axes for action chunks. Read the runnable example in [state and deployment semantics](references/state-and-semantics.md).
+Add semantics when a user requests them or an identified downstream consumer needs tensor meaning to bind observations, map joint order, interpret commands, or apply action chunks. They are not required for tracing, export, numerical validation, or state feedback. Default to named raw tensors for ordinary internal node connections; do not annotate every intermediate value or add nodes solely for metadata.
 
-- Semantic annotations use `input_tensors` / `output_tensors`, **not `method`**. Pass a single `TensorSemantics` or a list directly; no dict wrapping or mixing with raw tensors in that list. Names must be unique within the inputs or outputs.
-- `element_names` describes axis ordering; use `None` for unnamed dimensions. Put at most one `TemporalAxis(period_ms=...)` directly in the outer axis list, not inside a nested list.
-- `extra` fields such as units/frames are flattened into YAML and are project-specific. Avoid collisions with built-in fields and confirm the downstream consumer understands them.
-- Use `GraphConfigs(frequency=...)` for graph execution frequency in Hz. Temporal sample spacing is in milliseconds and is independent of graph frequency; LEAPP does not validate their consistency or schedule the application from this metadata.
+When needed, read [deployment semantics](references/semantics.md). **Prefer standard `InputKindEnum` / `OutputKindEnum` kinds** over custom strings or `extra`. Keep annotations compact: reuse existing ordered names, specify only consumed fields, and avoid repeated wrappers or metadata factories. Do not guess physical meaning for normalized features, latent vectors, or mixed observations. State/reset contracts are covered separately in [state](references/state.md).
 
 ## Warp setup and export (experimental)
 
@@ -203,6 +201,6 @@ Use actual `manager.inputs` / `manager.outputs` keys (`node/port`). Inspect inte
 
 Deliver the complete export directory: model artifact(s), graph YAML, `*_initial_values.safetensors` when feedback exists, and all referenced model/external-data files. Preserve paths relative to the YAML. PNG and logs are useful diagnostics; they do not replace runnable artifacts. For Warp, document/build the matching native adapter and its discovery/override configuration on the destination.
 
-Confirm runtime input/output keys, shapes, dtypes, device expectations, semantics, state initialization/reset behavior, and supported input domain. Preserve YAML positional I/O order for consumers loading the model directly. Where practical, load and run a copied bundle from its delivery location to detect hidden source-path dependencies.
+Confirm runtime input/output keys, shapes, dtypes, device expectations, semantics when used, state initialization/reset behavior, and supported input domain. Preserve YAML positional I/O order for consumers loading the model directly. Where practical, load and run a copied bundle from its delivery location to detect hidden source-path dependencies.
 
 Report the model count and any reasons for splitting, node boundaries and graph I/O, annotation/adapter changes, chosen backend per node and fallback attempts, generated bundle paths, fresh-input and stateful parity results, and any remaining runtime or input-domain limitations. Distinguish a complete runnable bundle from a traced graph, partial export, or diagnostic-only result.
