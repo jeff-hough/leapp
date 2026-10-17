@@ -1,12 +1,15 @@
-=====
-LEAPP
-=====
+===========
+Isaac LEAPP
+===========
+
+.. meta::
+   :description: Isaac LEAPP is NVIDIA's library for machine learning pipeline export. Capture supported preprocessing, inference, and postprocessing in ONNX, TorchScript, or PT2 models.
 
 .. raw:: html
 
    <header class="leapp-hero">
      <div class="leapp-hero-copy">
-       <h1>LEAPP</h1>
+       <h1>Isaac LEAPP</h1>
        <p>Lightweight Export Annotations<br />for Policy Pipelines</p>
      </div>
      <div class="leapp-hero-action">
@@ -25,7 +28,9 @@ LEAPP
 
 Export the whole policy pipeline, not just the model weights.
 
-LEAPP exports the policy code you already run into ONNX, TorchScript, or
+Isaac LEAPP is NVIDIA's library for machine learning pipeline export.
+LEAPP stands for Lightweight Export Annotations for Policy Pipelines.
+It exports the computation you already run into ONNX, TorchScript, or
 PyTorch ExportedProgram models. Capture preprocessing, model inference, and
 action processing together in **one model**, even when the computation spans
 helper functions, class methods, and supported PyTorch and NumPy operations.
