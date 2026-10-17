@@ -71,7 +71,14 @@ extensions such as **SciPy**, **OpenCV**, and **numba**, NumPy's own compiled ro
 including ``np.fft``, ``np.linalg.inv``, ``np.interp``, and ``np.pad``, and
 plain Python iteration over array elements.
 
-Where a rewrite in traced operations is not practical, split the node:
+When a faithful replacement can be expressed in supported operations, use
+:doc:`../guides/patching` to register it for the unsupported module-level
+function. Existing helpers can keep their calls to that function; the adapter's
+operations become part of the exported model. Replacements must be pure and
+match the behavior used by the application. Validate them against the original
+function on fresh inputs.
+
+If a faithful function patch is not practical, split the node:
 call :func:`~leapp.annotate.output_tensors` before the untraceable step and
 :func:`~leapp.annotate.input_tensors` after it, so the gap becomes an explicit
 graph boundary that the deploying runtime has to fill.
@@ -133,9 +140,9 @@ Extracting Python values
 captured at trace time and drop out of the graph. Each logs a warning.
 
 Using an array in a boolean context, such as ``if array.any():``, records only
-the branch taken during tracing and logs an error. An exported graph is a
-static structure and cannot hold a data-dependent branch; use ``np.where`` for
-element-wise choices, or split the node around the decision.
+the branch taken during tracing and logs an error. LEAPP's capture does not
+preserve data-dependent Python branches; use ``np.where`` for element-wise
+choices, or split the node around the decision.
 
 Casts are limited to the shared dtypes
 ======================================
