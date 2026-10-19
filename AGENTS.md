@@ -16,17 +16,22 @@ Python 3.10+ and PyTorch 2.6.0+. Visualization extras install only on
 
 ## Load this first
 
+All instruction and skill references below are relative to the repository
+root and tracked in Git. Do not require machine-local or editor-specific
+skill installations.
+
 | If you are changing… | Read this before editing |
 |---|---|
-| Tracing, `TracedData` / `TracedTensor` / `TracedNpArray`, indexing, mutation, node-boundary identity, FX proxies, NumPy dispatch | `.cursor/skills/leap_agent/SKILL.md` |
-| Warp tracing (`TracedWpArray`, APIC, `warp_op`) | `warp_support.md` |
+| Tracing, `TracedData` / `TracedTensor` / `TracedNpArray`, indexing, mutation, node-boundary identity, FX proxies, NumPy dispatch | [SKILL.md](SKILL.md), especially "Preserve graph connections and computation" and "Diagnose trace loss before changing exporters"; implementation in `leapp/leapp_graph/` |
+| Warp tracing (`TracedWpArray`, APIC, `warp_op`) | [Warp guide](references/warp.md) |
 | Public annotate/lifecycle API or docs examples | `docs/source/api/index.rst` plus the matching guide under `docs/source/` |
 | Graph PNG layout | `packages/leapp-visualization/` |
 | Export backends | `leapp/backends/` |
 | YAML / `InferenceManager` | `leapp/leapp.py` (`compile_graph`), `leapp/inference_manager.py`, `docs/source/generated_configs.rst` |
 
-Do not mix the skill's current `(context_obj, output_port)` identity with
-legacy `leapp_tag` helpers. The skill states which checkout you have.
+Do not mix the current `(context_obj, output_port)` identity with
+legacy `leapp_tag` helpers. Check the implementation in this repository
+when changing tracing internals.
 
 ## Tree (start here)
 
@@ -72,7 +77,7 @@ Narrower (use these while iterating):
 | Annotate / I/O / state | `pytest tests/functional_tests/ -v` |
 | Examples | `pytest tests/test_examples/ -v` |
 | Visualization | `pytest packages/leapp-visualization/tests/ -v` (Python 3.11+) |
-| Warp tracing | see `warp_support.md` |
+| Warp tracing | see [Warp guide](references/warp.md) |
 
 ### Python formatting
 
@@ -187,7 +192,7 @@ User-facing integration recipes belong here, not in this file.
   lifecycle stays in `warp/session.py`, `warp_op.py`, and
   `warp/warp_segment.py`.
 - After shared indexing changes: both torch and NumPy unit suites, plus
-  FX / jit / exported-program coverage as the skill describes.
+  FX / jit / exported-program coverage in `tests/`.
   `onnx-dynamo` for modern index cases; do not require legacy ONNX if
   that exporter cannot lower the op.
 - Do not invent graph edges for data a node did not publish. Clearing
