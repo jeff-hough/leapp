@@ -197,9 +197,9 @@ Documentation Map
    :maxdepth: 2
 
    semantics/usage
+   semantics/convenience
    semantics/kind_element_names
-   semantics/temporal
-   semantics/experimental
+   semantics/legacy
 
 .. toctree::
    :caption: Tensor Libraries

@@ -325,152 +325,62 @@ The method logs statistics including:
 Semantic metadata
 =================
 
-``TensorSemantics``
--------------------
-
-Describe a named tensor and optional semantic metadata for YAML serialization.
-Use ``TensorSemantics`` with :func:`~leapp.annotate.input_tensors` and
-:func:`~leapp.annotate.output_tensors` when tensor entries need meaning beyond
-shape and dtype.
-
-Signature
-~~~~~~~~~
-
-.. code-block:: python
-
-   TensorSemantics(
-       name: str = None,
-       ref = None,
-       kind: InputKindEnum | OutputKindEnum | str | None = None,
-       element_names: list | None = None,
-       extra: dict | None = None,
-   )
-
-Parameters
-~~~~~~~~~~
-
-* ``name`` (str, required): Tensor name to use in the generated pipeline YAML.
-* ``ref`` (Tensor or ndarray, required): Tensor value being annotated.
-* ``kind`` (InputKindEnum | OutputKindEnum | str, optional): Semantic role for
-  the tensor. Enum values are serialized to their string ``.value``.
-* ``element_names`` (list | str, optional): Human-readable element names. A
-  string becomes ``[[name]]``; a flat list of strings becomes ``[[...]]``; a
-  per-dimension list is preserved with optional ``None`` entries. Include
-  ``TemporalAxis(...)`` as a bare axis item to mark that axis temporal.
-* ``extra`` (dict, optional): Additional semantic fields. Keys are flattened
-  into the tensor YAML entry rather than serialized under an ``extra`` key.
-
-Behavior
-~~~~~~~~
-
-* ``TensorSemantics`` can be passed as a single object or as a list of objects.
-* When using a list, every item must be ``TensorSemantics``; mixing raw tensors
-  and ``TensorSemantics`` in the same list is not supported.
-* ``TensorSemantics`` objects are not placed inside dicts. The ``name`` field
-  provides the tensor key.
-* Public semantic fields with non-``None`` values are serialized in the YAML.
-* ``extra`` fields are flattened into the same YAML mapping as built-in fields.
-
-``TemporalAxis``
-~~~~~~~~~~~~~~~~
-
-Mark one ``element_names`` axis as temporal and attach an absolute period in
-milliseconds to the tensor YAML entry.
-
-.. code-block:: python
-
-   from leapp import TensorSemantics, TemporalAxis
-
-   TensorSemantics(
-       name="actions",
-       ref=actions,
-       element_names=[TemporalAxis(period_ms=100), ["hip", "knee", "ankle"]],
-   )
-
-This emits the reserved bare axis sentinel and the period metadata:
-
-.. code-block:: yaml
-
-   element_names:
-   - __temporal_axis__
-   - [hip, knee, ankle]
-   temporal_period_ms: 100
-
-``__temporal_axis__`` is reserved for LEAPP output; use
-``TemporalAxis`` rather than writing the sentinel directly.
-
 .. warning::
 
-   ``extra`` fields are non-standard, project-defined metadata. Downstream
-   deployment frameworks should not be expected to understand or support them.
-   Use ``extra`` only for project-specific integration data, and prefer
-   standard LEAPP semantic fields whenever possible.
+   ``Kind``, ``AxisKind``, ``ExpressionFrame``, ``Axis``, the quantity helpers,
+   and the ``axes``, ``is_setpoint``, ``reference``, and ``expressed_in`` fields
+   are experimental. They are imported directly from ``leapp``. Their contract
+   may evolve in future releases.
 
-Enum values
-~~~~~~~~~~~
-
-``InputKindEnum`` currently defines:
-
-.. code-block:: text
-
-   JOINT_POSITION = state/joint/position
-   JOINT_VELOCITY = state/joint/velocity
-   JOINT_EFFORT = state/joint/effort
-   BODY_POSE = state/body/pose
-   BODY_VEL = state/body/velocity
-   BODY_ACC = state/body/acceleration
-   BODY_LINEAR_ACCELERATION = state/body/linear_acceleration
-   BODY_LINEAR_VELOCITY = state/body/linear_velocity
-   BODY_ANGULAR_ACCELERATION = state/body/angular_acceleration
-   BODY_ANGULAR_VELOCITY = state/body/angular_velocity
-   BODY_ROTATION = state/body/rotation
-   BODY_POSITION = state/body/position
-   WRENCH = state/wrench
-   VECTOR3D = state/vector3d
-   COMMAND_JOINT_POSITION = command/joint/position
-   COMMAND_JOINT_VELOCITY = command/joint/velocity
-   COMMAND_JOINT_TORQUES = command/joint/torques
-   COMMAND_BODY_ROTATION = command/body/rotation
-   COMMAND_BODY_VELOCITY = command/body/velocity
-   COMMAND_POSE = command/body/pose
-
-``OutputKindEnum`` currently defines:
-
-.. code-block:: text
-
-   KP = kp
-   KD = kd
-   JOINT_POSITION = target/joint/position
-   JOINT_VELOCITY = target/joint/velocity
-   JOINT_TORQUES = target/joint/torques
-   JOINT_EFFORT = target/joint/effort
-   BODY_POSITION = target/body/position
-   BODY_LINEAR_ACCELERATION = target/body/linear_acceleration
-   BODY_ORIENTATION = target/body/orientation
-   BODY_LINEAR_VELOCITY = target/body/linear_velocity
-   BODY_ANGULAR_ACCELERATION = target/body/angular_acceleration
-
-See :doc:`/semantics/usage` for examples and field guidance.
-
-Experimental semantics
-----------------------
-
-The experimental ``Kind``, ``AxisKind``, ``ExpressionFrame``, ``Axis`` and
-quantity helpers are available directly from ``leapp`` alongside the existing
-API. See :doc:`/semantics/experimental` for all quantities, helper signatures,
-validation, and YAML examples.
-
-``TensorSemantics`` additionally accepts these keyword-only experimental fields:
+``TensorSemantics`` describes a named tensor for
+:func:`~leapp.annotate.input_tensors` and
+:func:`~leapp.annotate.output_tensors`. Quantity helpers return the same class.
 
 .. code-block:: python
 
-   TensorSemantics(name, ref, kind=None, element_names=None, extra=None,
+   TensorSemantics(name=None, ref=None, kind=None, element_names=None, extra=None,
                    *, axes=None, is_setpoint=False, reference=None,
                    expressed_in=None)
 
-Existing positional arguments and enum values are unchanged. ``axes`` and
-``element_names`` are mutually exclusive. Experimental setpoints are accepted
-only on inputs.
+* ``name`` and ``ref`` supply the port name and tensor value.
+* ``kind`` accepts ``Kind``, existing enums, custom strings, or ``None``.
+* ``axes`` accepts ``None`` or a list of ``Axis`` / ``None`` entries, one per
+  tensor dimension. Names must match the dimension size.
+* ``is_setpoint=True`` marks an incoming reference. Outputs reject it.
+* ``reference`` names the frame against which pose or motion is measured.
+* ``expressed_in`` accepts a literal frame name, ``ExpressionFrame.SELF``,
+  ``ExpressionFrame.REFERENCE``, or ``None`` (global).
+* ``extra`` is a dictionary flattened into the tensor YAML entry. Use it only
+  for agreed consumer-specific metadata and avoid built-in field names.
+* ``element_names`` retains its original behavior and cannot accompany ``axes``.
+
+Pass a single annotation or a homogeneous list directly, never inside a dict
+or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
+
+``Axis`` and quantity helpers
+-----------------------------
+
+.. code-block:: python
+
+   Axis(kind=None, names=None, period_ms=None)
+   joint_position(name, ref, *, axes=None, is_setpoint=False)
+   frame_pose(name, ref, *, axes=None, is_setpoint=False, reference=None)
+   frame_twist(name, ref, *, axes=None, is_setpoint=False,
+               reference=None, expressed_in=None)
+   frame_wrench(name, ref, *, axes=None, is_setpoint=False, expressed_in=None)
+
+``AxisKind`` defines ``ROBOT``, ``ELEMENT``, ``COMPONENT``, and ``TIME``.
+Axis kinds also accept custom strings. Time axes require a finite, positive
+``period_ms``; other axis kinds cannot supply a period.
+
+See :doc:`/semantics/kind_element_names` for the ``Kind`` catalog and spatial fields,
+:doc:`/semantics/convenience` for helpers and component validation, and
+:ref:`semantics-time-axes` for time axes.
+
+The existing ``InputKindEnum``, ``OutputKindEnum``, ``TemporalAxis``, and
+``element_names`` APIs remain **fully supported and are not deprecated**.
+Existing positional arguments retain their meanings. Their enum tables,
+examples, and original YAML representation are in :doc:`/semantics/legacy`.
 
 Annotations
 ===========

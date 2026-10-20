@@ -1,213 +1,222 @@
-====================
-Kind & Element Names
-====================
+=============
+Kind and Axes
+=============
 
-``kind``
---------
+A deployment consumer needs to distinguish both the quantity in a tensor and
+its layout. A ``[2, 3]`` tensor, for example, could hold three joint values for
+two robots or three position components for two tools. ``Kind`` describes the
+quantity; ``Axis`` describes what each dimension indexes. Spatial fields add
+the coordinate-frame information needed to interpret poses and motion.
 
-The ``kind`` field describes the **semantic role** of a tensor --- what
-physical quantity or command it represents. LEAPP provides two separate
-enums for inputs and outputs to clearly distinguish between observed
-state and commanded targets. ``kind`` may also be any plain string when
-you need a custom semantic label.
+Use :doc:`convenience` to construct common annotations with named helpers, or
+supply these fields directly to ``TensorSemantics`` as shown below.
 
-``InputKindEnum``
-~~~~~~~~~~~~~~~~~
+.. warning::
 
-Used with :func:`~leapp.annotate.input_tensors`. These represent
-**observed state** or **commanded references** flowing into a node.
+   ``Kind``, ``AxisKind``, ``ExpressionFrame``, ``Axis``, the quantity helpers,
+   and the ``axes``, ``is_setpoint``, ``reference``, and ``expressed_in`` fields
+   are experimental. They are imported directly from ``leapp``. Their contract
+   may evolve in future releases.
+
+The existing APIs remain fully supported and are not deprecated. See
+:doc:`legacy` for ``InputKindEnum``, ``OutputKindEnum``, ``element_names``,
+and ``TemporalAxis``, including their original YAML representation.
+
+Choosing a quantity
+-------------------
+
+Choose the quantity from the values the tensor actually contains. A normalized
+observation or a vector containing several different measurements may not have
+one physical kind; leave it unspecified or agree a custom kind with the consumer.
+
+``Kind`` describes the quantity, independently of input/output direction.
+Input annotations default to measured state; set ``is_setpoint=True`` for a
+setpoint input. Output annotations reject ``is_setpoint=True``. Custom string
+kinds and ``kind=None`` are also accepted.
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 30 40
 
-   * - Enum value
-     - YAML string
-     - Description
+   * - Kind
+     - YAML value
    * - ``JOINT_POSITION``
-     - ``state/joint/position``
-     - Observed joint positions (e.g. encoder readings)
+     - ``joint/position``
    * - ``JOINT_VELOCITY``
-     - ``state/joint/velocity``
-     - Observed joint velocities
+     - ``joint/velocity``
    * - ``JOINT_EFFORT``
-     - ``state/joint/effort``
-     - Observed joint effort
-   * - ``BODY_POSE``
-     - ``state/body/pose``
-     - Observed body pose
-   * - ``BODY_POSITION``
-     - ``state/body/position``
-     - Observed body position
-   * - ``BODY_VEL``
-     - ``state/body/velocity``
-     - Observed body velocity
-   * - ``BODY_ACC``
-     - ``state/body/acceleration``
-     - Observed body acceleration
-   * - ``BODY_LINEAR_ACCELERATION``
-     - ``state/body/linear_acceleration``
-     - Body linear acceleration (e.g. from IMU)
-   * - ``BODY_LINEAR_VELOCITY``
-     - ``state/body/linear_velocity``
-     - Body linear velocity
-   * - ``BODY_ANGULAR_ACCELERATION``
-     - ``state/body/angular_acceleration``
-     - Body angular acceleration
-   * - ``BODY_ANGULAR_VELOCITY``
-     - ``state/body/angular_velocity``
-     - Body angular velocity (e.g. gyroscope)
-   * - ``BODY_ROTATION``
-     - ``state/body/rotation``
-     - Body rotation / orientation
-   * - ``WRENCH``
-     - ``state/wrench``
-     - Observed wrench values
+     - ``joint/effort``
+   * - ``FRAME_POSE``
+     - ``frame/pose``
+   * - ``FRAME_POSITION``
+     - ``frame/position``
+   * - ``FRAME_ORIENTATION``
+     - ``frame/orientation``
+   * - ``FRAME_TWIST``
+     - ``frame/twist``
+   * - ``FRAME_LINEAR_VELOCITY``
+     - ``frame/linear_velocity``
+   * - ``FRAME_ANGULAR_VELOCITY``
+     - ``frame/angular_velocity``
+   * - ``FRAME_ACCELERATION``
+     - ``frame/acceleration``
+   * - ``FRAME_LINEAR_ACCELERATION``
+     - ``frame/linear_acceleration``
+   * - ``FRAME_ANGULAR_ACCELERATION``
+     - ``frame/angular_acceleration``
+   * - ``FRAME_WRENCH``
+     - ``frame/wrench``
+   * - ``FORCE_APPLICATION_POSITION``
+     - ``frame/force_application_position``
    * - ``VECTOR3D``
-     - ``state/vector3d``
-     - Generic 3D vector state
-   * - ``COMMAND_JOINT_POSITION``
-     - ``command/joint/position``
-     - Commanded joint position reference
-   * - ``COMMAND_JOINT_VELOCITY``
-     - ``command/joint/velocity``
-     - Commanded joint velocity reference
-   * - ``COMMAND_BODY_ROTATION``
-     - ``command/body/rotation``
-     - Commanded body rotation reference
-   * - ``COMMAND_BODY_VELOCITY``
-     - ``command/body/velocity``
-     - Commanded body velocity reference
-   * - ``COMMAND_POSE``
-     - ``command/body/pose``
-     - Commanded body pose reference
-   * - ``COMMAND_JOINT_TORQUES``
-     - ``command/joint/torques``
-     - Commanded joint torques reference
-
-.. code-block:: python
-
-   from leapp.utils.enums import InputKindEnum
-
-   TensorSemantics("joint_pos", tensor, kind=InputKindEnum.JOINT_POSITION)
-   TensorSemantics("imu_gyro", tensor,
-                   kind=InputKindEnum.BODY_ANGULAR_VELOCITY)
-   TensorSemantics("target_pos", tensor,
-                   kind=InputKindEnum.COMMAND_JOINT_POSITION)
-
-   # Custom string kinds are also allowed.
-   TensorSemantics("terrain_latent", tensor,
-                   kind="state/environment/terrain_embedding")
-
-``OutputKindEnum``
-~~~~~~~~~~~~~~~~~~
-
-Used with :func:`~leapp.annotate.output_tensors`. These represent
-**target commands** or **control outputs** produced by a node.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 30 40
-
-   * - Enum value
-     - YAML string
-     - Description
+     - ``vector3d``
    * - ``KP``
      - ``kp``
-     - Proportional gain
    * - ``KD``
      - ``kd``
-     - Derivative gain
-   * - ``JOINT_POSITION``
-     - ``target/joint/position``
-     - Target joint position
-   * - ``JOINT_VELOCITY``
-     - ``target/joint/velocity``
-     - Target joint velocity
-   * - ``JOINT_TORQUES``
-     - ``target/joint/torques``
-     - Target joint torques
-   * - ``JOINT_EFFORT``
-     - ``target/joint/effort``
-     - Target joint effort
-   * - ``BODY_POSITION``
-     - ``target/body/position``
-     - Target body position
-   * - ``BODY_LINEAR_ACCELERATION``
-     - ``target/body/linear_acceleration``
-     - Target body linear acceleration
-   * - ``BODY_ORIENTATION``
-     - ``target/body/orientation``
-     - Target body orientation
-   * - ``BODY_LINEAR_VELOCITY``
-     - ``target/body/linear_velocity``
-     - Target body linear velocity
-   * - ``BODY_ANGULAR_ACCELERATION``
-     - ``target/body/angular_acceleration``
-     - Target body angular acceleration
+   * - ``IMAGE``
+     - ``image``
+
+``Axis``
+--------
+
+For a tensor shaped ``[robot, joint]``, the first axis identifies robots and
+the second identifies joints. Names preserve the order expected by the model:
+labeling the columns ``hip`` and ``knee`` tells a consumer how to match them to
+its own joint ordering. The annotation itself does not reorder any values.
+
+``axes`` is either ``None`` or a list with one entry per tensor dimension.
+Entries can be ``Axis`` objects or ``None``. ``Axis.kind`` and ``Axis.names``
+are independently optional. Supplied names must match the dimension size.
 
 .. code-block:: python
 
-   from leapp.utils.enums import OutputKindEnum
+   import torch
+   from leapp import Axis, AxisKind, Kind, TensorSemantics
 
-   TensorSemantics("torques", action, kind=OutputKindEnum.JOINT_TORQUES)
-   TensorSemantics("kp_gains", kp, kind=OutputKindEnum.KP)
+   q = torch.zeros(1, 2)
+   annotation = TensorSemantics(
+       "q", q, kind=Kind.JOINT_POSITION,
+       axes=[Axis(AxisKind.ROBOT), Axis(AxisKind.ELEMENT, names=["hip", "knee"])],
+   )
 
-.. note::
+For an unspecified batch dimension, use ``None`` instead of declaring it a
+robot axis. ``ELEMENT`` identifies physical elements such as joints or tools;
+``COMPONENT`` identifies the coordinates of each value, such as ``x, y, z``.
 
-   LEAPP does not enforce using ``InputKindEnum`` only for inputs or
-   ``OutputKindEnum`` only for outputs, but it is strongly recommended to
-   follow this convention. The ``kind`` field accepts enum values and
-   plain strings.
+Standard kinds are ``ROBOT``, ``ELEMENT``, ``COMPONENT``, and ``TIME``.
+They serialize as ``robot``, ``element``, ``component``, and ``time``.
+Custom strings such as ``Axis(kind="token")`` remain available. Strings
+matching standard values receive the same validation as their enum equivalents.
+``Axis(names=["a", "b"])`` supplies labels without declaring a kind.
+Use ``Axis(AxisKind.TIME, period_ms=...)`` for a time dimension. Its period
+must be finite and positive, and each tensor may have at most one time axis.
+The period is independent of ``GraphConfigs.frequency``.
 
-``element_names``
------------------
+.. _semantics-time-axes:
 
-The ``element_names`` field provides human-readable names for the
-elements along each dimension of a tensor. The canonical format is
-``list[list[str]]``, where the outer list corresponds to tensor
-dimensions and each inner list names the elements in that dimension.
-LEAPP also accepts several shorthand formats and normalizes them
-automatically:
+Time axes
+---------
 
-.. list-table::
-   :header-rows: 1
-   :widths: 35 35 30
+An action chunk contains several samples in one tensor. Its shape tells a
+controller how many samples there are, but not how far apart they are in time.
+A time axis records that spacing so the consumer can interpret the sequence.
+For example, ``[4, 3]`` can represent four samples for three joints, with
+100 milliseconds between samples.
 
-   * - Input format
-     - Normalized to
-     - Use case
-   * - ``"hip"``
-     - ``[["hip"]]``
-     - Single named element
-   * - ``["hip", "knee", "ankle"]``
-     - ``[["hip", "knee", "ankle"]]``
-     - Flat list --- names for one dimension
-   * - ``[["batch"], ["x", "y", "z"]]``
-     - ``[["batch"], ["x", "y", "z"]]``
-     - Already canonical --- per-dimension names
-   * - ``[None, None, ["r", "g", "b"]]``
-     - ``[None, None, ["r", "g", "b"]]``
-     - Partial --- only name specific dimensions
+Use ``Axis(AxisKind.TIME, period_ms=...)`` in ``axes`` to describe sample
+spacing for action chunks, trajectories, or history windows. Supply one entry
+per tensor dimension. A time axis requires a finite, positive period in
+milliseconds, and a tensor may have at most one time axis.
 
 .. code-block:: python
 
-   # Name elements along the last dimension.
-   TensorSemantics(
-       "joint_pos", tensor,
-       element_names=["hip", "knee", "ankle",
-                      "shoulder", "elbow", "wrist"])
+   import torch
+   from leapp import Axis, AxisKind, joint_effort
 
-   # Name elements per dimension (e.g. for a [batch, 3] tensor).
-   TensorSemantics(
-       "position", tensor,
-       element_names=[None, ["x", "y", "z"]])
+   actions = torch.zeros(4, 3)
+   annotation = joint_effort(
+       "actions", actions,
+       axes=[
+           Axis(AxisKind.TIME, period_ms=100),
+           Axis(AxisKind.ELEMENT, names=["hip", "knee", "ankle"]),
+       ],
+   )
 
-   # Name a single element.
-   TensorSemantics("gravity", tensor, element_names="z")
+When registered with ``annotate.output_tensors``, this produces:
 
-See :doc:`usage` for general ``TensorSemantics`` usage patterns and
-:doc:`temporal` for temporal axis metadata.
+.. code-block:: yaml
 
+   - name: actions
+     dtype: float32
+     shape: [4, 3]
+     type: tensor
+     kind: joint/effort
+     axes:
+     - {kind: time, period_ms: 100}
+     - {kind: element, names: [hip, knee, ankle]}
 
-See :doc:`experimental` for the optional experimental quantity and axis API.
+``GraphConfigs.frequency`` describes graph execution frequency in Hz; the
+axis period describes sample spacing inside a tensor. LEAPP does not validate
+one against the other or schedule runtime calls from this metadata.
+
+Spatial metadata
+----------------
+
+A tool velocity is ambiguous without a frame convention. The tool can move
+relative to the robot base while its velocity components are expressed along
+the tool's own axes. These are two separate choices: ``reference`` answers
+"relative to what?", and ``expressed_in`` answers "along whose axes?".
+Agree both conventions with the consumer before annotating the tensor.
+
+``reference`` names the frame against which pose or motion is measured.
+``expressed_in`` identifies the coordinate basis: a literal frame name,
+``ExpressionFrame.SELF`` (the element's own frame), or
+``ExpressionFrame.REFERENCE`` (the frame named by ``reference``).
+Twists and wrenches default to ``None`` (global). A literal frame named ``self`` is
+not the same as the enum selector. ``None`` means the global frame for both
+fields. Spatial fields serialize together under ``spatial``; missing YAML fields
+also mean global.
+
+.. code-block:: yaml
+
+   kind: frame/twist
+   spatial:
+     reference: base
+     expressed_in: {selector: self}
+   axes:
+   - {kind: element, names: [tool]}
+   - {kind: component, names: [vx, vy, vz, wx, wy, wz]}
+
+A literal expression frame serializes as ``expressed_in: {frame: world}``.
+Poses use ``reference`` only; wrenches use ``expressed_in`` only. Twist linear
+velocity is evaluated at the element frame's origin; wrench moments are taken
+about that origin unless a separate application position is supplied. These annotations do not transform tensor values.
+
+``force_application_position`` describes an optional XYZ position paired with a
+wrench by element name and input/output purpose. Both use the same
+``expressed_in`` (default ``None``, global). ``SELF`` means an offset from the element
+origin; ``None`` means an absolute global position; a named frame supplies the
+position's origin and axes. No ``reference`` is used, and ``REFERENCE`` is invalid.
+With an application position, the wrench's moment is the supplied torque;
+applying the offset force adds its lever-arm moment. Without one, the force acts
+at the element origin.
+
+Opting in
+---------
+
+Existing callers do not need to migrate. To try experimental annotations,
+use ``Kind`` or a quantity helper and supply ``axes`` where needed. New kind
+values omit direction prefixes, use ``FRAME_*`` for spatial quantities, and
+use joint effort for torque. Include ``None`` for unspecified dimensions.
+Temporal metadata uses ``Axis(AxisKind.TIME, period_ms=...)``. The existing
+``TemporalAxis`` and ``element_names`` representation remains supported.
+
+For existing annotations, ``update()`` continues to store experimental field
+names as custom ``extra`` metadata. Construct the annotation with an experimental
+field or use ``Kind`` to enable experimental field updates.
+
+Existing and newer annotations may coexist in a graph or annotation list.
+New fields are keyword-only, and ``axes`` and ``element_names`` are mutually
+exclusive. A custom string kind alone retains legacy behavior, even for a
+string such as ``"frame/twist"``. Use ``Kind.FRAME_TWIST`` or its helper to
+opt into the newer spatial defaults and validation.
