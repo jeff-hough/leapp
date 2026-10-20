@@ -89,10 +89,11 @@ Use `extra` only for agreed consumer-specific metadata that standard fields cann
 
 Inspect the exported YAML for the intended standard kinds, actual element order and axes, and any required timing/config fields. Confirm that the deployment consumer recognizes the contract. Numerical parity tests alone cannot detect mislabeled units, joint order, or physical meaning. Report missing consumer information instead of filling it with plausible metadata.
 
-## Experimental semantics
+## Experimental semantics and migration
 
-Use the optional quantity helpers, `Kind`, and `Axis` API only when requested
-or required by the consumer. They are available directly from `leapp` and do
-not replace `InputKindEnum`, `OutputKindEnum`, `TemporalAxis`, or `element_names`.
-See `docs/source/semantics/experimental.rst` in this repository for the API and
-YAML contract.
+For the optional `Kind`, `Axis`, spatial metadata, and quantity helpers, read
+[experimental semantics and migration](experimental-semantics.md). It covers
+capability checks, existing-enum mappings, axis and temporal conversion,
+before/after examples, and the YAML consumer contract. Use it when migration is
+requested or a consumer needs those features; existing annotations remain
+supported. Experimental APIs are imported directly from `leapp`.

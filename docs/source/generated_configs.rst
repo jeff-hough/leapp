@@ -276,11 +276,3 @@ names, controller APIs, coordinate frames, or UI labels.
             - __temporal_axis__
             - [hip, knee, ankle]
             temporal_period_ms: 100
-
-Experimental metadata
----------------------
-
-The existing metadata above can coexist with optional experimental quantity
-kinds, ``axes``, ``is_setpoint``, and ``spatial`` fields.
-Existing metadata is not converted. See :doc:`semantics/experimental` for
-examples.

@@ -267,5 +267,3 @@ isaac
 canonicalize
 canonicalized
 canonicalizing
-setpoint
-setpoints

@@ -1,6 +1,6 @@
 ---
 name: leapp-integrate
-description: Annotate and export downstream LEAPP pipelines with a single-model ONNX default, function patches, state and deployment semantics, runtime validation, and optional Warp setup/capture. Use for application integration rather than tracer internals.
+description: Annotate and export downstream LEAPP pipelines with a single-model ONNX default, function patches, state and deployment semantics (including experimental semantics migration), runtime validation, and optional Warp setup/capture. Use for application integration rather than tracer internals.
 ---
 
 # Integrate LEAPP into a project
@@ -168,6 +168,13 @@ Supported NumPy/Torch conversions such as `torch.from_numpy()` and `.numpy()` ca
 Add semantics when a user requests them or an identified downstream consumer needs tensor meaning to bind observations, map joint order, interpret commands, or apply action chunks. They are not required for tracing, export, numerical validation, or state feedback. Default to named raw tensors for ordinary internal node connections; do not annotate every intermediate value or add nodes solely for metadata.
 
 When needed, read [deployment semantics](references/semantics.md). **Prefer standard `InputKindEnum` / `OutputKindEnum` kinds** over custom strings or `extra`. Keep annotations compact: reuse existing ordered names, specify only consumed fields, and avoid repeated wrappers or metadata factories. Do not guess physical meaning for normalized features, latent vectors, or mixed observations. State/reset contracts are covered separately in [state](references/state.md).
+
+For experimental quantity/axis annotations or a migration request, read
+[experimental semantics and migration](references/experimental-semantics.md).
+These APIs are exported directly from `leapp`; existing annotations remain
+supported. Check installed capabilities and the consumer contract before
+migrating. The published API guides cover the established API; the skill
+reference carries the experimental contract and migration mappings.
 
 ## Warp setup and export (experimental)
 
