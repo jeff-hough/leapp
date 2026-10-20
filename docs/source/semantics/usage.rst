@@ -245,3 +245,4 @@ does not validate ``TemporalAxis`` values against ``GraphConfigs.frequency``.
 
 See :doc:`kind_element_names` for standard ``kind`` values and element naming,
 and :doc:`temporal` for temporal axes on chunked tensors.
+
