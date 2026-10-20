@@ -17,7 +17,7 @@
 
 import collections.abc
 import math
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Optional, Any, Dict, Tuple, List
 
 import torch
@@ -43,8 +43,13 @@ from leapp.leapp_graph.datatypes import (
     TRACABLE_BASE_TYPES,
 )
 from leapp.utils.utils import safe_deepcopy
-from leapp.utils.enums import Kind, AxisKind, ExpressionFrame
-
+from leapp.utils.enums import (
+    InputKindEnum,
+    OutputKindEnum,
+    Kind,
+    AxisKind,
+    ExpressionFrame,
+)
 
 
 class CompactYamlList(list):
@@ -53,6 +58,7 @@ class CompactYamlList(list):
     formatted in a more compact way in the yaml file.
 
     """
+
     pass
 
 
@@ -61,21 +67,45 @@ class CompactYamlDict(dict):
     This class will behave exactly like a dict. The only difference is that it will be
     formatted in a more compact way in the yaml file.
     """
+
     pass
 
 
 # Register custom YAML representers so these types are always serialized in flow style
 yaml.add_representer(
     CompactYamlList,
-    lambda dumper, data: dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True))
+    lambda dumper, data: dumper.represent_sequence(
+        "tag:yaml.org,2002:seq", data, flow_style=True
+    ),
+)
 yaml.add_representer(
     CompactYamlDict,
-    lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data, flow_style=True))
+    lambda dumper, data: dumper.represent_mapping(
+        "tag:yaml.org,2002:map", data, flow_style=True
+    ),
+)
+
+
+TEMPORAL_AXIS_SENTINEL = "__temporal_axis__"
+
+
+@dataclass(frozen=True)
+class TemporalAxis:
+    """Marks an element_names axis as temporal with a fixed period in ms."""
+
+    period_ms: float
+
+    def __post_init__(self):
+        if self.period_ms <= 0:
+            _get_logger().fatal(
+                "TemporalAxis period_ms must be positive",
+                error_type=ValueError,
+            )
 
 
 @dataclass(frozen=True)
 class Axis:
-    """Optional meaning and labels for one tensor dimension."""
+    """Experimental meaning and labels for one tensor dimension."""
 
     kind: AxisKind | str | None = None
     names: list[str] | None = None
@@ -92,9 +122,12 @@ class Axis:
         if self.period_ms is not None:
             if self.kind != AxisKind.TIME:
                 raise ValueError("period_ms is only valid for a time axis")
-            if (isinstance(self.period_ms, bool)
-                    or not isinstance(self.period_ms, (int, float))
-                    or not math.isfinite(self.period_ms) or self.period_ms <= 0):
+            if (
+                isinstance(self.period_ms, bool)
+                or not isinstance(self.period_ms, (int, float))
+                or not math.isfinite(self.period_ms)
+                or self.period_ms <= 0
+            ):
                 raise ValueError("Axis.period_ms must be finite and positive")
         elif self.kind == AxisKind.TIME:
             raise ValueError("A time axis requires period_ms")
@@ -102,7 +135,9 @@ class Axis:
     def to_dict(self):
         result = {}
         if self.kind is not None:
-            result["kind"] = self.kind.value if isinstance(self.kind, AxisKind) else self.kind
+            result["kind"] = (
+                self.kind.value if isinstance(self.kind, AxisKind) else self.kind
+            )
         if self.names is not None:
             result["names"] = list(self.names)
         if self.period_ms is not None:
@@ -142,50 +177,106 @@ class GraphConfigs:
 class TensorSemantics:
     """User-facing semantic metadata for a tensor.
 
+    ``axes``, ``is_setpoint``, ``reference``, and ``expressed_in`` are
+    experimental keyword-only fields. Existing kinds and element names retain
+    their original behavior.
+
     Add new semantic fields here — they automatically propagate to
     TensorDescription, YAML serialization, and the unwrap/apply flow.
 
     Convention:
         - Internal fields (ref, name) are listed in _INTERNAL_FIELDS and excluded from serialization.
-        - Public fields (kind, axes, ...) are semantic data that gets serialized to YAML.
+        - Public fields (kind, element_names, ...) are semantic data that gets serialized to YAML.
     """
 
     # Fields excluded from serialization (internal use only)
-    _INTERNAL_FIELDS = frozenset({'ref', 'name'})
+    _INTERNAL_FIELDS = frozenset({"ref", "name"})
 
     name: str = None
     ref: Any = None
 
     # Semantic fields
-    kind: Optional[Kind | str] = None
+    kind: Optional[InputKindEnum | OutputKindEnum | Kind | str] = None
+    element_names: Optional[List] = None  # deprecated
+    temporal_period_ms: Optional[float] = field(default=None, init=False)
     extra: Optional[Dict[str, Any]] = None
-    axes: list[Axis | None] | None = None
-    is_setpoint: bool = False
-    reference: str | None = None
-    expressed_in: ExpressionFrame | str | None = None
+
+    # Experimental fields are keyword-only to preserve the existing constructor.
+    axes: list[Axis | None] | None = field(default=None, kw_only=True)
+    is_setpoint: bool = field(default=False, kw_only=True)
+    reference: str | None = field(default=None, kw_only=True)
+    expressed_in: ExpressionFrame | str | None = field(default=None, kw_only=True)
+
+    @property
+    def _uses_experimental_semantics(self):
+        return (
+            isinstance(self.kind, Kind)
+            or self.axes is not None
+            or self.is_setpoint is not False
+            or self.reference is not None
+            or self.expressed_in is not None
+        )
 
     def __post_init__(self):
-        '''error checking, auto conditioning'''
-        if not is_tracable_tensor_type(self.ref): # this checks for both base types and traced types
+        """error checking, auto conditioning"""
+        existing_period_ms = self.temporal_period_ms
+        self.temporal_period_ms = None
+        if not is_tracable_tensor_type(
+            self.ref
+        ):  # this checks for both base types and traced types
             _get_logger().fatal(
                 f"TensorSemantics 'ref' must be a traceable tensor type "
                 f"accepted types are: {TRACABLE_BASE_TYPES}"
                 f"got {type(self.ref).__name__}",
                 error_type=TypeError,
             )
-        if self.kind is not None and (not isinstance(self.kind, str) or not self.kind):
-            raise TypeError("kind must be a Kind, non-empty string, or None")
+        if self.element_names is not None:
+            self.element_names, detected_period_ms = self._normalize_element_names(
+                self.element_names,
+                allow_temporal_sentinel=existing_period_ms is not None,
+            )
+            self.temporal_period_ms = detected_period_ms or existing_period_ms
+
+        if not self._uses_experimental_semantics:
+            return
+        if self.axes is not None and self.element_names is not None:
+            raise ValueError("Use either element_names or axes, not both")
+        if (
+            self.kind is not None
+            and not isinstance(self.kind, (InputKindEnum, OutputKindEnum))
+            and (not isinstance(self.kind, str) or not self.kind)
+        ):
+            raise TypeError(
+                "kind must be an existing kind enum, Kind, non-empty string, or None"
+            )
         if not isinstance(self.is_setpoint, bool):
             raise TypeError("is_setpoint must be a boolean")
-        if self.reference is not None and (not isinstance(self.reference, str) or not self.reference):
+        if self.reference is not None and (
+            not isinstance(self.reference, str) or not self.reference
+        ):
             raise TypeError("reference must be a non-empty frame name or None (world)")
-        if self.expressed_in is not None and not isinstance(self.expressed_in, ExpressionFrame):
+        if self.expressed_in is not None and not isinstance(
+            self.expressed_in, ExpressionFrame
+        ):
             if not isinstance(self.expressed_in, str) or not self.expressed_in:
-                raise TypeError("expressed_in must be an ExpressionFrame or non-empty frame name")
-        if self.kind in (Kind.FRAME_WRENCH, Kind.FORCE_APPLICATION_POSITION) and self.expressed_in is ExpressionFrame.REFERENCE:
+                raise TypeError(
+                    "expressed_in must be an ExpressionFrame or non-empty frame name"
+                )
+        if (
+            self.kind in (Kind.FRAME_WRENCH, Kind.FORCE_APPLICATION_POSITION)
+            and self.expressed_in is ExpressionFrame.REFERENCE
+        ):
             raise ValueError("A wrench cannot use REFERENCE")
-        if self.extra and set(self.extra) & {"axes", "is_setpoint", "reference", "expressed_in", "spatial"}:
-            raise ValueError("Use TensorSemantics fields rather than extra for axes and spatial metadata")
+        if self.extra and set(self.extra) & {
+            "axes",
+            "is_setpoint",
+            "reference",
+            "expressed_in",
+            "spatial",
+        }:
+            raise ValueError(
+                "Use TensorSemantics fields rather than extra for axes and spatial metadata"
+            )
         if self.axes is not None:
             if not isinstance(self.axes, list):
                 raise TypeError("axes must be a list or None")
@@ -202,7 +293,6 @@ class TensorSemantics:
             if sum(a is not None and a.kind == AxisKind.TIME for a in self.axes) > 1:
                 raise ValueError("A tensor may contain at most one time axis")
 
-
     def to_dict(self) -> Dict[str, Any]:
         """Return all non-None semantic fields, excluding internal fields.
 
@@ -211,7 +301,11 @@ class TensorSemantics:
         """
         result = {}
         for f in fields(self):
-            if f.name in self._INTERNAL_FIELDS or f.name in ("extra", "reference", "expressed_in"):
+            if f.name in self._INTERNAL_FIELDS or f.name in (
+                "extra",
+                "reference",
+                "expressed_in",
+            ):
                 continue
             value = getattr(self, f.name)
             if f.name == "is_setpoint" and not value:
@@ -221,17 +315,26 @@ class TensorSemantics:
             if value is not None:
                 result[f.name] = value
         spatial = {}
-        if self.kind is not None and self.kind.startswith("frame/"):
+        if (
+            self._uses_experimental_semantics
+            and isinstance(self.kind, str)
+            and self.kind.startswith("frame/")
+        ):
             if self.kind not in (Kind.FRAME_WRENCH, Kind.FORCE_APPLICATION_POSITION):
                 spatial["reference"] = self.reference
-            if self.kind not in (Kind.FRAME_POSE, Kind.FRAME_POSITION, Kind.FRAME_ORIENTATION):
+            if self.kind not in (
+                Kind.FRAME_POSE,
+                Kind.FRAME_POSITION,
+                Kind.FRAME_ORIENTATION,
+            ):
                 spatial["expressed_in"] = None
         # Preserve supplied metadata regardless of the quantity's conventions.
         if self.reference is not None:
             spatial["reference"] = self.reference
         if self.expressed_in is not None:
             spatial["expressed_in"] = (
-                {"selector": self.expressed_in.value} if isinstance(self.expressed_in, ExpressionFrame)
+                {"selector": self.expressed_in.value}
+                if isinstance(self.expressed_in, ExpressionFrame)
                 else {"frame": self.expressed_in}
             )
         if spatial:
@@ -247,6 +350,12 @@ class TensorSemantics:
         in the ``extra`` dict so they still appear in the serialized YAML.
         """
         valid_fields = {f.name for f in fields(self) if f.init} - self._INTERNAL_FIELDS
+        # Existing callers used these names as arbitrary extra metadata. Only
+        # interpret them as fields after opting into experimental semantics.
+        if not self._uses_experimental_semantics and not isinstance(
+            values.get("kind"), Kind
+        ):
+            valid_fields -= {"axes", "is_setpoint", "reference", "expressed_in"}
         for key, value in values.items():
             if key in valid_fields:
                 setattr(self, key, value)
@@ -256,17 +365,88 @@ class TensorSemantics:
                 self.extra[key] = value
         self.__post_init__()
 
+    @staticmethod
+    def _normalize_element_names(element_names, allow_temporal_sentinel=False):
+        """Normalize element_names and extract temporal axis metadata."""
+        if isinstance(element_names, str):
+            if element_names == TEMPORAL_AXIS_SENTINEL:
+                if allow_temporal_sentinel:
+                    return CompactYamlList([element_names]), None
+                _get_logger().fatal(
+                    f"{TEMPORAL_AXIS_SENTINEL!r} is reserved for TemporalAxis",
+                    error_type=ValueError,
+                )
+            return CompactYamlList([CompactYamlList([element_names])]), None
+
+        if not isinstance(element_names, list):
+            return element_names, None
+
+        temporal_period_ms = None
+        normalized = CompactYamlList()
+        has_axis_descriptors = False
+        has_temporal_axis = False
+
+        for item in element_names:
+            if isinstance(item, TemporalAxis):
+                if has_temporal_axis:
+                    _get_logger().fatal(
+                        "element_names can contain at most one TemporalAxis",
+                        error_type=ValueError,
+                    )
+                has_axis_descriptors = True
+                has_temporal_axis = True
+                temporal_period_ms = item.period_ms
+                normalized.append(TEMPORAL_AXIS_SENTINEL)
+            elif isinstance(item, str):
+                if item == TEMPORAL_AXIS_SENTINEL:
+                    if not allow_temporal_sentinel:
+                        _get_logger().fatal(
+                            f"{TEMPORAL_AXIS_SENTINEL!r} is reserved for TemporalAxis",
+                            error_type=ValueError,
+                        )
+                    has_axis_descriptors = True
+                    normalized.append(TEMPORAL_AXIS_SENTINEL)
+                else:
+                    normalized.append(item)
+            elif isinstance(item, list):
+                if any(isinstance(child, TemporalAxis) for child in item):
+                    _get_logger().fatal(
+                        "TemporalAxis must be an axis item, not nested in a list",
+                        error_type=ValueError,
+                    )
+                if any(child == TEMPORAL_AXIS_SENTINEL for child in item):
+                    _get_logger().fatal(
+                        f"{TEMPORAL_AXIS_SENTINEL!r} must be a bare axis item, not nested in a list",
+                        error_type=ValueError,
+                    )
+                has_axis_descriptors = True
+                normalized.append(CompactYamlList(item))
+            elif item is None:
+                has_axis_descriptors = True
+                normalized.append(None)
+            else:
+                _get_logger().warning(
+                    "element_names has mixed types, expected names or axis descriptors"
+                )
+                return element_names, temporal_period_ms
+
+        if has_axis_descriptors:
+            return normalized, temporal_period_ms
+
+        return CompactYamlList([CompactYamlList(normalized)]), None
+
 
 class TensorDescription:
     """Describes a tensor input/output in the computational graph.
 
-    Composes TensorSemantics for semantic metadata (kind, axes, etc.).
-    Access semantic fields directly via properties (td.kind, td.axes)
+    Composes TensorSemantics for semantic metadata (kind, element_names, etc.).
+    Access semantic fields directly via properties (td.kind, td.element_names)
     or in bulk via get_semantics()/set_semantics().
     """
 
-    def __init__(self, name: str, value: Any,
-                 semantics: Optional[TensorSemantics] = None):
+    def __init__(
+        self, name: str, value: Any, semantics: Optional[TensorSemantics] = None
+    ):
         # Capture where the value came from before unwrapping loses that state.
         source_node = None
         port = None
@@ -336,13 +516,13 @@ class TensorDescription:
             "name": self.name,
             "dtype": self.dtype,
             "shape": self.shape,
-            "type": self.type
+            "type": self.type,
         }
         if self.value is not None and not ignore_value:
             result["value"] = self.value
         # Merge in all non-None semantic fields
         for key, value in self.get_semantics().items():
-            if hasattr(value, 'value'):  # Enum → serialize to its .value string
+            if hasattr(value, "value"):  # Enum → serialize to its .value string
                 result[key] = value.value
             else:
                 result[key] = value
@@ -374,6 +554,7 @@ class TensorDescription:
         """Return just the name as a string."""
         return self.name
 
+
 @dataclass
 class ParameterFormat:
     name: str
@@ -381,14 +562,17 @@ class ParameterFormat:
 
     def get_format_string(self, data: Any) -> Tuple[bool, str]:
 
-        if isinstance(data, collections.abc.Sequence) and not isinstance(data, (str, bytes, torch.Tensor)):
+        if isinstance(data, collections.abc.Sequence) and not isinstance(
+            data, (str, bytes, torch.Tensor)
+        ):
             # Warn if not a native list
             if not isinstance(data, list):
                 type_name = type(data).__name__
                 _get_logger().debug(
                     f"Parameter '{self.name}' has list-like type '{type_name}' which will be "
                     f"treated as 'list' in the generated function signature. This may cause "
-                    f"issues if the exact type is required.")
+                    f"issues if the exact type is required."
+                )
 
             if len(data) == 0:
                 return True, "list"  # Empty list, can't determine child type
@@ -410,7 +594,8 @@ class ParameterFormat:
                 _get_logger().debug(
                     f"Parameter '{self.name}' has dict-like type '{type_name}' which will be "
                     f"treated as 'dict' in the generated function signature. This may cause "
-                    f"issues if the exact type is required.")
+                    f"issues if the exact type is required."
+                )
 
             if len(data) == 0:
                 return True, "dict"  # Empty dict, can't determine child type
@@ -422,8 +607,7 @@ class ParameterFormat:
             if len(value_types) > 1:
                 return False, "INCONSISTENT DICT VALUE TYPES"
 
-            success, child = self.get_format_string(
-                list(data.values())[0])
+            success, child = self.get_format_string(list(data.values())[0])
             if not success:
                 return False, "DICT CHILD FORMAT STRING NOT VALID"
             else:
@@ -437,7 +621,7 @@ class ParameterFormat:
 
     @property
     def name_str(self) -> str:
-        """Return just the name as a string. 
+        """Return just the name as a string.
         will do some modifications to me the vairable compliant with python"""
         return self.name.replace(".", "_")
 
@@ -466,6 +650,7 @@ class ParameterFormat:
         """
         Generate a list of tensor expressions in the order of the nested structure.
         """
+
         def _generate_expr(format_item) -> list[str]:
             if isinstance(format_item, ParameterFormat):
                 return _generate_expr(format_item.formatting)
@@ -477,6 +662,7 @@ class ParameterFormat:
                 return [_generate_expr(value) for value in format_item.values()]
             else:
                 return []
+
         return _generate_expr(self.formatting)
 
     @property
@@ -488,9 +674,10 @@ class ParameterFormat:
         Handles nested structures (lists, dicts).
 
         Returns:
-            Assignment string like "inputA = [inputA_0, inputA_1]". 
+            Assignment string like "inputA = [inputA_0, inputA_1]".
             Empty string if no packing needed.
         """
+
         def _generate_expr(format_item) -> str:
             if isinstance(format_item, ParameterFormat):
                 return _generate_expr(format_item.formatting)
@@ -500,8 +687,7 @@ class ParameterFormat:
                 elements = [_generate_expr(item) for item in format_item]
                 return "[" + ", ".join(elements) + "]"
             elif isinstance(format_item, dict):
-                items = [
-                    f'"{k}": {_generate_expr(v)}' for k, v in format_item.items()]
+                items = [f'"{k}": {_generate_expr(v)}' for k, v in format_item.items()]
                 return "{" + ", ".join(items) + "}"
             else:
                 return "None"
@@ -530,10 +716,10 @@ class ParameterFormat:
         Returns:
             Newline-separated assignment strings. Empty string if no unpacking needed.
         """
+
         def _generate_unpacking(format_item, accessor_path: str, assignments: list):
             if isinstance(format_item, ParameterFormat):
-                _generate_unpacking(format_item.formatting,
-                                    accessor_path, assignments)
+                _generate_unpacking(format_item.formatting, accessor_path, assignments)
             elif isinstance(format_item, TensorDescription):
                 tensor_name = format_item.name_str
                 if tensor_name != accessor_path:
@@ -551,8 +737,10 @@ class ParameterFormat:
         _generate_unpacking(self.formatting, self.name_str, assignments)
         return "\n".join(assignments)
 
-def validate_connection_compatibility(source_name, source_shape, source_dtype,
-                                      target_name, target_shape, target_dtype):
+
+def validate_connection_compatibility(
+    source_name, source_shape, source_dtype, target_name, target_shape, target_dtype
+):
     """Validate shape and dtype compatibility for a single pipeline edge."""
     if list(source_shape) != list(target_shape):
         _get_logger().fatal(
@@ -599,7 +787,7 @@ def verify_data_exact_match(source_data, target_data):
             return False
         source_data = to_export_torch_tensor(source_data)
         target_data = to_export_torch_tensor(target_data)
-        
+
         # identity comparison
         if source_data.shape != target_data.shape:
             return False
@@ -631,7 +819,9 @@ def verify_data_exact_match(source_data, target_data):
 
 def flatten_io_structure(data, name_str):
     flat_data = {}
-    if isinstance(data, collections.abc.Sequence) and not isinstance(data, (str, bytes, torch.Tensor)):
+    if isinstance(data, collections.abc.Sequence) and not isinstance(
+        data, (str, bytes, torch.Tensor)
+    ):
         for idx, item in enumerate(data):
             child_name = f"{name_str}_{idx}" if name_str else str(idx)
             flat_data.update(flatten_io_structure(item, child_name))
@@ -671,7 +861,11 @@ def unwrap_tensor_semantics(data):
         )
 
     if not all(isinstance(item, TensorSemantics) for item in data):
-        bad_types = {type(item).__name__ for item in data if not isinstance(item, TensorSemantics)}
+        bad_types = {
+            type(item).__name__
+            for item in data
+            if not isinstance(item, TensorSemantics)
+        }
         _get_logger().fatal(
             f"All items must be TensorSemantics when using semantic inputs. "
             f"Found non-TensorSemantics types: {bad_types}",
@@ -700,18 +894,20 @@ def unwrap_tensor_semantics(data):
 def describe_io_helper(data, name_str):
     data_description = []
     io_format = {}
-    if isinstance(data, collections.abc.Sequence) and not isinstance(data, (str, bytes, torch.Tensor)):
+    if isinstance(data, collections.abc.Sequence) and not isinstance(
+        data, (str, bytes, torch.Tensor)
+    ):
         if not isinstance(data, list):
             type_name = type(data).__name__
             _get_logger().warning(
                 f"Input/Output '{name_str}' has list-like type '{type_name}' which will be "
-                f"treated as 'list'. Ensure the runtime can handle this substitution.")
+                f"treated as 'list'. Ensure the runtime can handle this substitution."
+            )
 
         io_format = []
         for idx, item in enumerate(data):
             child_name = f"{name_str}_{idx}" if name_str else str(idx)
-            child_description, child_format = describe_io_helper(
-                item, child_name)
+            child_description, child_format = describe_io_helper(item, child_name)
             if child_format is not None:
                 io_format.append(child_format)
                 data_description.extend(child_description)
@@ -721,13 +917,13 @@ def describe_io_helper(data, name_str):
             type_name = type(data).__name__
             _get_logger().warning(
                 f"Input/Output '{name_str}' has dict-like type '{type_name}' which will be "
-                f"treated as 'dict'. Ensure the runtime can handle this substitution.")
+                f"treated as 'dict'. Ensure the runtime can handle this substitution."
+            )
 
         io_format = {}
         for k, v in data.items():
             child_name = f"{name_str}_{k}" if name_str else k
-            child_description, child_format = describe_io_helper(
-                v, child_name)
+            child_description, child_format = describe_io_helper(v, child_name)
             if child_format is not None:
                 io_format[k] = child_format
                 data_description.extend(child_description)
@@ -746,10 +942,8 @@ def describe_io_helper(data, name_str):
 
 
 def describe_io(name, raw_name, data):
-    data_description, io_format = describe_io_helper(
-        data, name)
-    parameter_description = ParameterFormat(
-        name=raw_name, formatting=io_format)
+    data_description, io_format = describe_io_helper(data, name)
+    parameter_description = ParameterFormat(name=raw_name, formatting=io_format)
     return data_description, parameter_description
 
 
@@ -775,7 +969,10 @@ def _resolve_tensor_descriptions(io_format, extractor):
     elif isinstance(io_format, list):
         return [_resolve_tensor_descriptions(item, extractor) for item in io_format]
     elif isinstance(io_format, dict):
-        return {key: _resolve_tensor_descriptions(value, extractor) for key, value in io_format.items()}
+        return {
+            key: _resolve_tensor_descriptions(value, extractor)
+            for key, value in io_format.items()
+        }
     else:
         return io_format
 

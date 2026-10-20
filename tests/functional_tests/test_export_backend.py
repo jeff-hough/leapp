@@ -22,7 +22,7 @@ import yaml
 import onnx
 import leapp
 from leapp.leapp import _MANAGER as annotate
-from leapp import TensorSemantics, Kind
+from leapp import TensorSemantics, InputKindEnum, OutputKindEnum
 from leapp.backends.export_backend import SimplifiedONNXProgram
 from .base import LEAPPFunctionalTestBase
 import pytest
@@ -247,7 +247,7 @@ class TestOnnxBackend(LEAPPFunctionalTestBase):
                     TensorSemantics(
                         name="joint_pos",
                         ref=torch.tensor([1.0, 2.0, 3.0]),
-                        kind=Kind.JOINT_POSITION,
+                        kind=InputKindEnum.JOINT_POSITION,
                     ),
                 )
                 annotate.output_tensors(
@@ -255,7 +255,7 @@ class TestOnnxBackend(LEAPPFunctionalTestBase):
                     TensorSemantics(
                         name="joint_pos",
                         ref=traced + 1.0,
-                        kind=Kind.JOINT_POSITION,
+                        kind=OutputKindEnum.JOINT_POSITION,
                     ),
                     export_with=export_with,
                 )
@@ -275,11 +275,11 @@ class TestOnnxBackend(LEAPPFunctionalTestBase):
                 self.assertEqual(output_names, ["joint_pos_out"])
                 self.assertEqual(
                     [desc["kind"] for desc in model_desc["inputs"]],
-                    [Kind.JOINT_POSITION.value],
+                    [InputKindEnum.JOINT_POSITION.value],
                 )
                 self.assertEqual(
                     [desc["kind"] for desc in model_desc["outputs"]],
-                    [Kind.JOINT_POSITION.value],
+                    [OutputKindEnum.JOINT_POSITION.value],
                 )
 
                 model_path = os.path.join(self.TEST_GRAPH_NAME, "func_overlap.onnx")

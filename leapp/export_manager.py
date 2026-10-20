@@ -240,7 +240,9 @@ class ExportManager:
             if api_name.startswith("output_tensors"):
                 for semantics in metadata.values():
                     if semantics.is_setpoint:
-                        raise ValueError("is_setpoint=True applies only to inputs; omit it on outputs")
+                        raise ValueError(
+                            "is_setpoint=True applies only to inputs; omit it on outputs"
+                        )
 
         if is_tracable_tensor_type(tensors):
             _get_logger().fatal(
