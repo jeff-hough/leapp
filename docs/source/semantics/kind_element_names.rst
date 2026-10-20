@@ -208,4 +208,3 @@ automatically:
 
 See :doc:`usage` for general ``TensorSemantics`` usage patterns and
 :doc:`temporal` for temporal axis metadata.
-
