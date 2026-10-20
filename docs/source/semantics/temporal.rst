@@ -51,3 +51,6 @@ Downstream consumers can find the temporal axis by locating
    sentinel directly. A tensor may contain at most one temporal axis marker.
 
 See :doc:`kind_element_names` for ``kind`` and ``element_names`` metadata.
+
+
+See :doc:`experimental` for the optional experimental quantity and axis API.

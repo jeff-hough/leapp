@@ -208,3 +208,6 @@ automatically:
 
 See :doc:`usage` for general ``TensorSemantics`` usage patterns and
 :doc:`temporal` for temporal axis metadata.
+
+
+See :doc:`experimental` for the optional experimental quantity and axis API.

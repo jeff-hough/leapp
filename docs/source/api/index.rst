@@ -452,6 +452,26 @@ Enum values
 
 See :doc:`/semantics/usage` for examples and field guidance.
 
+Experimental semantics
+----------------------
+
+The experimental ``Kind``, ``AxisKind``, ``ExpressionFrame``, ``Axis`` and
+quantity helpers are available directly from ``leapp`` alongside the existing
+API. See :doc:`/semantics/experimental` for all quantities, helper signatures,
+validation, and YAML examples.
+
+``TensorSemantics`` additionally accepts these keyword-only experimental fields:
+
+.. code-block:: python
+
+   TensorSemantics(name, ref, kind=None, element_names=None, extra=None,
+                   *, axes=None, is_setpoint=False, reference=None,
+                   expressed_in=None)
+
+Existing positional arguments and enum values are unchanged. ``axes`` and
+``element_names`` are mutually exclusive. Experimental setpoints are accepted
+only on inputs.
+
 Annotations
 ===========
 

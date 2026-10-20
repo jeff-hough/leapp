@@ -199,6 +199,7 @@ Documentation Map
    semantics/usage
    semantics/kind_element_names
    semantics/temporal
+   semantics/experimental
 
 .. toctree::
    :caption: Tensor Libraries
