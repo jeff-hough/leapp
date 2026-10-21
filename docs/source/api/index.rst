@@ -365,8 +365,8 @@ Semantic metadata
    Use ``extra`` only for project-specific integration data, and prefer
    standard LEAPP semantic fields whenever possible.
 
-Pass a single annotation or a homogeneous list directly, never inside a dict
-or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
+Pass a single annotation or a homogeneous list or tuple directly, never inside
+a dict or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
 
 ``Axis`` and quantity helpers
 -----------------------------
@@ -380,7 +380,7 @@ or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
                reference=None, expressed_in=None)
    frame_wrench(name, ref, *, axes=None, is_setpoint=None, expressed_in=None)
 
-``AxisKind`` defines ``ROBOT``, ``ELEMENT``, ``COMPONENT``, and ``TIME``.
+``AxisKind`` defines ``SYSTEM``, ``ELEMENT``, ``COMPONENT``, and ``TIME``.
 Axis kinds also accept custom strings. Time axes require a finite, positive
 ``period_ms``; other axis kinds cannot supply a period.
 

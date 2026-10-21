@@ -46,8 +46,8 @@ Semantic annotations describe four parts of that contract:
   from the measurement. This flag applies only to inputs.
 * **Layout:** ``Axis`` identifies the elements, components, or time samples
   along each tensor dimension. A joint-position tensor shaped ``[2, 3]`` could
-  describe two robots with three joints each (axes ordered as robot, joint),
-  or three robots with two joints each (axes ordered as joint, robot). The
+  describe two robots with three joints each (axes ordered as system, joint),
+  or three robots with two joints each (axes ordered as joint, system). The
   order of the ``Axis`` entries tells the consumer how to interpret the
   dimensions; it must match the tensor's actual layout.
 * **Frames:** spatial metadata identifies the reference frame and coordinate
@@ -79,7 +79,7 @@ This example exports a simplified joint controller:
 * Inputs are measured joint positions, measured joint velocities, and desired
   joint positions (the position setpoint).
 * The output is a joint effort command.
-* Each tensor has shape ``[1, 2]``, representing ``[robot, joint]``, and shares
+* Each tensor has shape ``[1, 2]``, representing ``[system, joint]``, and shares
   the same axis labels.
 * Quantity helpers return ``TensorSemantics`` objects. We pass the inputs as
   a list and the output as a single object.
@@ -117,7 +117,7 @@ other considerations needed for a deployed controller.
          q_target = torch.tensor([[0.4, 0.3]])
          # Describe what each dimension indexes, using the same order as the tensors.
          joint_axes = [
-             Axis(AxisKind.ROBOT, names=["robot0"]),
+             Axis(AxisKind.SYSTEM, names=["robot0"]),
              Axis(AxisKind.ELEMENT, names=["shoulder", "elbow"]),
          ]
 
@@ -159,7 +159,7 @@ other considerations needed for a deployed controller.
                type: tensor
                kind: joint/position
                axes:
-               - {kind: robot, names: [robot0]}
+               - {kind: system, names: [robot0]}
                - {kind: element, names: [shoulder, elbow]}
              - name: dq
                dtype: float32
@@ -167,7 +167,7 @@ other considerations needed for a deployed controller.
                type: tensor
                kind: joint/velocity
                axes:
-               - {kind: robot, names: [robot0]}
+               - {kind: system, names: [robot0]}
                - {kind: element, names: [shoulder, elbow]}
              - name: q_target
                dtype: float32
@@ -176,7 +176,7 @@ other considerations needed for a deployed controller.
                kind: joint/position
                is_setpoint: true
                axes:
-               - {kind: robot, names: [robot0]}
+               - {kind: system, names: [robot0]}
                - {kind: element, names: [shoulder, elbow]}
              outputs:
              - name: effort
@@ -185,7 +185,7 @@ other considerations needed for a deployed controller.
                type: tensor
                kind: joint/effort
                axes:
-               - {kind: robot, names: [robot0]}
+               - {kind: system, names: [robot0]}
                - {kind: element, names: [shoulder, elbow]}
 
 The input/output lists determine direction. Only ``q_target`` is marked as a
@@ -250,14 +250,14 @@ also stored in ``extra`` and serialized this way.
 Passing conventions
 ===================
 
-``TensorSemantics`` are passed as a **single object** or a **list**. They
+``TensorSemantics`` are passed as a **single object**, a **list**, or a **tuple**. They
 cannot be placed inside a dict --- use the standard dict format for raw
-tensors and the list format for ``TensorSemantics``. The only supported
+tensors and a list or tuple for ``TensorSemantics``. The only supported
 top-level formats are:
 
 * a dict of named raw tensors
 * a single ``TensorSemantics``
-* a list of ``TensorSemantics``
+* a list or tuple of ``TensorSemantics``
 
 Bare top-level tensors and other unnamed top-level collections are not
 supported.
@@ -304,13 +304,13 @@ Limitations
    signatures and traced values.
 #. **No mixing** --- when using ``TensorSemantics``, all items must be
    ``TensorSemantics``. You cannot mix raw tensors and ``TensorSemantics``
-   in the same list.
+   in the same list or tuple.
 #. **No dict wrapping** --- ``TensorSemantics`` must be passed directly
-   or in a list. Each carries its own name, so the dict key is
+   or in a list or tuple. Each carries its own name, so the dict key is
    unnecessary.
 #. **Name uniqueness** --- each ``TensorSemantics`` name must be unique
-   within the same node's inputs (or outputs). Duplicate names raise an
-   error.
+   within each list or tuple of annotations. Duplicate names in that
+   collection raise an error.
 #. **Semantic fields are optional** --- all semantic fields (``kind``,
    ``axes``, spatial metadata, and
    ``extra``) are optional. A ``TensorSemantics`` with no semantic fields

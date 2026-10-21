@@ -367,7 +367,7 @@ Use the following mappings when updating an annotation:
        registration determines direction.
    * - Incoming ``COMMAND_*`` kind
      - Use the matching quantity with ``is_setpoint=True``. This marks an
-       incoming desired value; outputs must not set this flag.
+       incoming desired value; outputs must not use ``is_setpoint=True``.
    * - Joint torque kinds
      - Use ``joint_effort`` or ``Kind.JOINT_EFFORT``.
    * - Body pose, position, orientation, or motion kinds

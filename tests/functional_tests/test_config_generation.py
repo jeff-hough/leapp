@@ -687,7 +687,7 @@ class TestStructuredSemantics(LEAPPFunctionalTestBase):
         velocity = torch.zeros(1, 1, 6)
         pixels = torch.zeros(1, 3, 2, 2, dtype=torch.uint8)
         joints = [
-            Axis(AxisKind.ROBOT, names=["robot0"]),
+            Axis(AxisKind.SYSTEM, names=["robot0"]),
             Axis(AxisKind.ELEMENT, names=["shoulder", "elbow"]),
         ]
         leapp.start(name=self.TEST_GRAPH_NAME)
@@ -701,7 +701,7 @@ class TestStructuredSemantics(LEAPPFunctionalTestBase):
                     velocity,
                     reference="base",
                     axes=[
-                        Axis(AxisKind.ROBOT),
+                        Axis(AxisKind.SYSTEM),
                         Axis(AxisKind.ELEMENT, names=["tool"]),
                         Axis(
                             AxisKind.COMPONENT,
@@ -709,7 +709,7 @@ class TestStructuredSemantics(LEAPPFunctionalTestBase):
                         ),
                     ],
                 ),
-                image("camera", pixels, axes=[Axis(AxisKind.ROBOT), None, None, None]),
+                image("camera", pixels, axes=[Axis(AxisKind.SYSTEM), None, None, None]),
             ],
         )
         command = tt - tq + tv.sum() + ti.float().sum()

@@ -46,7 +46,7 @@ select axes without repeating a frame name:
 frame and differs from ``ExpressionFrame.SELF``. These annotations describe
 the values you already have; they do not rotate or transform them.
 
-For example, the following snippet describe a tool's velocity relative to its base, with components
+For example, the following snippet describes a tool's velocity relative to its base, with components
 expressed along the tool's own axes:
 
 .. tabs::

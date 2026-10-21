@@ -27,6 +27,25 @@ from leapp import Axis, AxisKind, ExpressionFrame, Kind, TensorSemantics
 from leapp.utils.tensor_description import TensorDescription
 
 
+@pytest.mark.parametrize("axis_kind", [AxisKind.SYSTEM, "system"])
+def test_system_axis_yaml(axis_kind):
+    ref = torch.zeros(2, 3)
+    annotation = leapp.joint_position(
+        "q",
+        ref,
+        axes=[
+            Axis(axis_kind, names=["machine0", "machine1"]),
+            Axis(AxisKind.ELEMENT, names=["joint0", "joint1", "joint2"]),
+        ],
+    )
+    entry = yaml.safe_load(yaml.dump(TensorDescription("q", ref, annotation).dict()))
+    assert entry["axes"] == [
+        {"kind": "system", "names": ["machine0", "machine1"]},
+        {"kind": "element", "names": ["joint0", "joint1", "joint2"]},
+    ]
+    assert entry["shape"] == [2, 3]
+
+
 def test_partial_and_custom_axes_yaml():
     ref = torch.zeros(2, 3, 4, 5)
     annotation = TensorSemantics(

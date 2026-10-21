@@ -103,7 +103,7 @@ Both measured and desired joint positions use ``Kind.JOINT_POSITION``.
 An ``Axis`` describes one dimension of a tensor. It has two parts that tell
 a consumer what the entries along that dimension represent:
 
-* ``kind`` identifies the category, using an ``AxisKind`` such as ``ROBOT``
+* ``kind`` identifies the category, using an ``AxisKind`` such as ``SYSTEM``
   or ``ELEMENT``.
 * ``names`` labels the individual entries in their tensor order. For example,
   joint names tell the consumer which value belongs to which joint.
@@ -115,12 +115,12 @@ Here are two small examples:
    from leapp import Axis, AxisKind
 
    # A dimension of size 2: entry 0 is robot0, entry 1 is robot1.
-   robots = Axis(kind=AxisKind.ROBOT, names=["robot0", "robot1"])
+   systems = Axis(kind=AxisKind.SYSTEM, names=["robot0", "robot1"])
 
    # A dimension of size 3: entries are shoulder, elbow, then wrist.
    joints = Axis(kind=AxisKind.ELEMENT, names=["shoulder", "elbow", "wrist"])
 
-For a joint-position tensor shaped ``[2, 3]``, ``axes=[robots, joints]`` means
+For a joint-position tensor shaped ``[2, 3]``, ``axes=[systems, joints]`` means
 that rows select robots and columns select joints. The names describe the
 order already present in the tensor; they do not reorder values.
 
@@ -132,11 +132,12 @@ Choose the ``AxisKind`` that matches what the dimension indexes:
 
    * - Axis kind
      - Meaning and example
-   * - ``ROBOT``
-     - Different robots. In a ``[2, 3]`` tensor with layout ``[robot, joint]``,
-       the first dimension selects one of two robots. An ordinary batch
-       dimension need not represent robots; leave its kind unspecified if
-       it does not.
+   * - ``SYSTEM``
+     - Complete systems, such as robots, vehicles, or machines. In a
+       ``[2, 3]`` joint-position tensor with layout ``[system, joint]``, the
+       first dimension selects one of two robots. ``ELEMENT`` identifies
+       parts within each system. An ordinary batch dimension need not
+       identify systems; leave its kind unspecified if it does not.
    * - ``ELEMENT``
      - Physical elements such as joints or tools. In that same tensor, the
        second dimension selects one of three joints, such as shoulder,
@@ -161,7 +162,7 @@ order of values within a dimension:
   ``Axis(names=["a", "b"])`` supplies labels without declaring an axis kind.
 * Supplied names must match the dimension size. Omitted labels are not inferred.
 * Custom axis kinds such as ``Axis(kind="token")`` are also accepted. Strings
-  matching standard values (i.e. ``"robot"``) receive the same validation as their enum equivalents (``AxisKind.ROBOT``).
+  matching standard values (i.e. ``"system"``) receive the same validation as their enum equivalents (``AxisKind.SYSTEM``).
 * Use either ``axes`` or ``element_names``; they cannot be supplied together.
 
 For one robot with two joints, the annotation can look like this:
@@ -179,7 +180,7 @@ For one robot with two joints, the annotation can look like this:
          annotation = joint_position(
              "q", q,
              axes=[
-                 Axis(AxisKind.ROBOT),
+                 Axis(AxisKind.SYSTEM),
                  Axis(AxisKind.ELEMENT, names=["hip", "knee"]),
              ],
          )
@@ -196,7 +197,7 @@ For one robot with two joints, the annotation can look like this:
          type: tensor
          kind: joint/position
          axes:
-         - {kind: robot}
+         - {kind: system}
          - {kind: element, names: [hip, knee]}
 
 For a sequence of effort commands, use a time axis.
@@ -237,7 +238,7 @@ Here, each row contains one sample for the same three joints:
 
 As a more complex example, here positions for two tools on two robots over four time samples are recorded:
 
-* **Robot:** two robots, ``robot0`` and ``robot1``.
+* **System:** two robots, ``robot0`` and ``robot1``.
 * **Time:** four samples, spaced 100 milliseconds apart.
 * **Element:** two tools per robot, ``left_tool`` and ``right_tool``.
 * **Component:** the ``x``, ``y``, and ``z`` coordinates of each tool.
@@ -251,13 +252,13 @@ As a more complex example, here positions for two tools on two robots over four 
          import torch
          from leapp import Axis, AxisKind, frame_position
 
-         # Shape: [robot, time, element, component].
+         # Shape: [system, time, element, component].
          positions = torch.zeros(2, 4, 2, 3)
          annotation = frame_position(
              "tool_positions", positions,
              reference="world",
              axes=[
-                 Axis(AxisKind.ROBOT, names=["robot0", "robot1"]),  # 2 robots
+                 Axis(AxisKind.SYSTEM, names=["robot0", "robot1"]),  # 2 robots
                  Axis(AxisKind.TIME, period_ms=100),                 # 4 samples
                  Axis(AxisKind.ELEMENT, names=["left_tool", "right_tool"]),  # 2 tools
                  Axis(AxisKind.COMPONENT, names=["x", "y", "z"]),   # 3 coordinates
@@ -276,7 +277,7 @@ As a more complex example, here positions for two tools on two robots over four 
          type: tensor
          kind: frame/position
          axes:
-         - {kind: robot, names: [robot0, robot1]}
+         - {kind: system, names: [robot0, robot1]}
          - {kind: time, period_ms: 100}
          - {kind: element, names: [left_tool, right_tool]}
          - {kind: component, names: [x, y, z]}
@@ -286,12 +287,12 @@ As a more complex example, here positions for two tools on two robots over four 
 For example, ``positions[1, 2, 0, :]`` holds robot1's left-tool XYZ position at
 the third sample, relative to the frame named ``world``.
 
-The axis order follows your data layout; LEAPP does not require robots or time
-to come first. A tensor stored as ``[time, robot, element, component]`` would
-have shape ``[4, 2, 2, 3]`` and put the ``TIME`` axis before the ``ROBOT`` axis.
+The axis order follows your data layout; LEAPP does not require systems or time
+to come first. A tensor stored as ``[time, system, element, component]`` would
+have shape ``[4, 2, 2, 3]`` and put the ``TIME`` axis before the ``SYSTEM`` axis.
 Reordering the axis descriptions alone does not move the tensor's values.
 
-Axis kinds serialize as ``robot``, ``element``, ``component``, and ``time``.
+Axis kinds serialize as ``system``, ``element``, ``component``, and ``time``.
 The time period and graph frequency describe different things:
 
 * ``Axis.period_ms`` describes spacing between samples inside a tensor.

@@ -82,7 +82,7 @@ class Kind(str, Enum):
 class AxisKind(str, Enum):
     """Experimental meanings for individual tensor dimensions."""
 
-    ROBOT = "robot"
+    SYSTEM = "system"
     ELEMENT = "element"
     COMPONENT = "component"
     TIME = "time"

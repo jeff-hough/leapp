@@ -49,7 +49,7 @@ annotate.output_tensors("pipeline", joint_position(
 
 `TensorSemantics` works with `input_tensors` / `output_tensors`, not `method`. Pass one object or a homogeneous list directly, never wrappers inside a dict or mixed with raw tensors in a list. Use separate calls for semantic and raw ports when needed; keep names unique within each node's inputs or outputs. Semantic fields are optional, so an empty wrapper adds no value over a named raw tensor.
 
-`axes` supplies one `Axis` or `None` per tensor dimension. For `[batch, joints]`, use `[None, Axis(AxisKind.ELEMENT, names=joint_names)]`. Supplied names must match the dimension size. Preserve actual layout and order; do not call a batch axis `ROBOT` unless it truly indexes robots or invent labels for latent dimensions.
+`axes` supplies one `Axis` or `None` per tensor dimension. For `[batch, joints]`, use `[None, Axis(AxisKind.ELEMENT, names=joint_names)]`. Supplied names must match the dimension size. Preserve actual layout and order; do not call a batch axis `SYSTEM` unless it truly indexes complete systems (such as robots, vehicles, or machines) or invent labels for latent dimensions.
 
 Use at most one `Axis(AxisKind.TIME, period_ms=...)`; its period must be finite and positive. LEAPP emits `{kind: time, period_ms: ...}` in the corresponding axis entry. Include timing when the consumer needs it, not on every tensor with multiple dimensions.
 
