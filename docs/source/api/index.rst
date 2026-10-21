@@ -339,7 +339,7 @@ Semantic metadata
 .. code-block:: python
 
    TensorSemantics(name=None, ref=None, kind=None, element_names=None, extra=None,
-                   *, axes=None, is_setpoint=False, reference=None,
+                   *, axes=None, is_setpoint=None, reference=None,
                    expressed_in=None)
 
 * ``name`` and ``ref`` supply the port name and tensor value.
@@ -347,7 +347,9 @@ Semantic metadata
   custom strings, or ``None``.
 * ``axes`` accepts ``None`` or a list of ``Axis`` / ``None`` entries, one per
   tensor dimension. Names must match the dimension size.
-* ``is_setpoint=True`` marks an incoming reference. Outputs reject it.
+* ``is_setpoint`` accepts ``True``, ``False``, or ``None`` (the default).
+  ``True`` marks an incoming reference and is rejected on outputs. Explicit
+  boolean values are written to YAML; ``None`` leaves the field unspecified and omitted.
 * ``reference`` names the frame against which pose or motion is measured.
 * ``expressed_in`` accepts a literal frame name, ``ExpressionFrame.SELF``,
   ``ExpressionFrame.REFERENCE``, or ``None`` (global).
@@ -355,6 +357,13 @@ Semantic metadata
   for agreed consumer-specific metadata and avoid built-in field names.
 * ``element_names`` supplies element labels and cannot accompany ``axes``.
   See :doc:`/semantics/legacy` for accepted formats.
+
+.. warning::
+
+   ``extra`` fields are non-standard, project-defined metadata. Downstream
+   deployment frameworks should not be expected to understand or support them.
+   Use ``extra`` only for project-specific integration data, and prefer
+   standard LEAPP semantic fields whenever possible.
 
 Pass a single annotation or a homogeneous list directly, never inside a dict
 or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
@@ -365,11 +374,11 @@ or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
 .. code-block:: python
 
    Axis(kind=None, names=None, period_ms=None)
-   joint_position(name, ref, *, axes=None, is_setpoint=False)
-   frame_pose(name, ref, *, axes=None, is_setpoint=False, reference=None)
-   frame_twist(name, ref, *, axes=None, is_setpoint=False,
+   joint_position(name, ref, *, axes=None, is_setpoint=None)
+   frame_pose(name, ref, *, axes=None, is_setpoint=None, reference=None)
+   frame_twist(name, ref, *, axes=None, is_setpoint=None,
                reference=None, expressed_in=None)
-   frame_wrench(name, ref, *, axes=None, is_setpoint=False, expressed_in=None)
+   frame_wrench(name, ref, *, axes=None, is_setpoint=None, expressed_in=None)
 
 ``AxisKind`` defines ``ROBOT``, ``ELEMENT``, ``COMPONENT``, and ``TIME``.
 Axis kinds also accept custom strings. Time axes require a finite, positive

@@ -189,8 +189,11 @@ other considerations needed for a deployed controller.
                - {kind: element, names: [shoulder, elbow]}
 
 The input/output lists determine direction. Only ``q_target`` is marked as a
-setpoint; measured inputs use the default ``is_setpoint=False``. The same Kind
-can describe measured and requested positions, and outputs need no extra flag.
+setpoint. Other annotations leave ``is_setpoint=None``, the default, so the
+field is omitted. Set ``is_setpoint=False`` to explicitly record that an input
+is not a setpoint; YAML then includes ``is_setpoint: false``. The same Kind can
+describe measured and requested positions. Outputs accept ``False`` or ``None``
+but reject ``True``.
 
 Helpers are optional. For example, the first input can also be written as:
 
@@ -203,11 +206,8 @@ Helpers are optional. For example, the first input can also be written as:
 Use ``axes=None`` or individual ``None`` entries when the consumer already knows
 part of the layout. They are not needed for this fully labeled joint interface.
 
-Notes
-=====
-
-``extra``
----------
+Custom metadata (``extra``)
+===========================
 
 The ``extra`` field accepts a dictionary of additional semantic metadata.
 Keys in ``extra`` are flattened into the generated YAML tensor entry rather

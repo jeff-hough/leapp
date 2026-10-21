@@ -100,6 +100,105 @@ YAML structure
      cuda version: '12.8'
      os: Ubuntu 24.04
 
+.. _yaml-minimum-contract:
+
+Required and optional fields
+============================
+
+The tables below describe the fields emitted by LEAPP. **Always
+present** means the key exists; its value may still be empty or ``null``.
+Application-specific metadata should not override built-in fields.
+
+Minimum YAML structure
+----------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 30 50
+
+   * - Location
+     - Fields
+     - Presence and meaning
+   * - Top level
+     - ``models``, ``pipeline``, ``system information``
+     - Always present.
+   * - Each model
+     - ``inputs``, ``outputs``, ``parameters``
+     - Always present. Input/output lists may be empty.
+   * - Each tensor entry
+     - ``name``, ``dtype``, ``shape``, ``type``
+     - Always present. These describe the port independently of semantic
+       annotations.
+   * - Model ``parameters``
+     - ``backend``, ``model_path``, ``md5sum``, ``sha256sum``, ``warp_segments``
+     - Always present. Artifact paths and hashes may be ``null``, such as
+       during a dry run.
+   * - Model ``parameters``
+     - Additional backend metadata
+     - Backend-dependent; consumers must not assume these fields exist.
+   * - ``pipeline``
+     - ``data_flow``, ``feedback_flow``, ``inputs``, ``outputs``
+     - Always present; mappings may be empty.
+   * - ``pipeline``
+     - ``configs``
+     - Present when ``GraphConfigs`` is supplied; may be ``{}``.
+   * - ``pipeline.configs``
+     - ``frequency``
+     - Present when supplied. Its absence means no execution frequency was
+       declared.
+   * - ``pipeline``
+     - ``initial_values``
+     - Present when a feedback-initialization file was written.
+
+Optional tensor metadata
+------------------------
+
+A consumer must not assume semantic metadata is present merely because a
+tensor has a name or a particular shape.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Field
+     - When present
+     - Meaning when absent
+   * - ``kind``
+     - A quantity or custom kind was supplied.
+     - The quantity is unspecified.
+   * - ``axes``
+     - Axis metadata was supplied.
+     - The tensor layout has no declared axis metadata.
+   * - ``axes[i]``
+     - Each entry corresponds to one dimension. An entry may be ``null`` or
+       ``{}``.
+     - A ``null`` entry leaves that dimension unspecified; ``{}`` declares
+       no axis fields. When ``axes`` is supplied, an entry is required for
+       every dimension.
+   * - ``axes[i].kind``
+     - An axis kind was supplied.
+     - The axis category is unspecified.
+   * - ``axes[i].names``
+     - Labels were supplied.
+     - Entries along that dimension are unnamed.
+   * - ``axes[i].period_ms``
+     - Required for a ``TIME`` axis; otherwise omitted.
+     - No sample period is declared.
+   * - ``is_setpoint``
+     - Emitted when explicitly set to ``true`` or ``false``.
+     - Unspecified (``None`` in Python); no setpoint purpose is declared.
+   * - ``spatial``
+     - Emitted for applicable built-in spatial quantities or explicitly
+       supplied spatial fields.
+     - No explicit spatial metadata; applicable spatial fields default to
+       global. See :ref:`spatial-yaml-fields` for helper-specific output.
+   * - ``element_names``, ``temporal_period_ms``
+     - Supplied through legacy annotations.
+     - No corresponding legacy labels or timing metadata.
+   * - Application-specific fields
+     - Supplied through ``extra``, flattened into the entry.
+     - No application-specific default is implied.
+
 Field Reference
 ===============
 
@@ -218,8 +317,9 @@ quantity and axis representation. See :doc:`semantics/legacy` for the
 
 ``kind`` describes a quantity, such as ``joint/position`` or ``frame/twist``.
 The ``inputs`` and ``outputs`` lists determine direction. An input with
-``is_setpoint: true`` is an incoming reference; the flag is omitted when false
-and cannot be true for outputs. See :doc:`semantics/kind_element_names`.
+``is_setpoint: true`` is an incoming reference. Explicit ``true`` and ``false``
+values are preserved; ``None`` (the default) omits the field. Outputs cannot
+set it to ``true``. See :doc:`semantics/kind_element_names`.
 
 ``axes``
 --------

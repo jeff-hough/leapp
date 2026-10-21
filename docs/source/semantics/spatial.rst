@@ -83,7 +83,40 @@ expressed along the tool's own axes:
          - {kind: element, names: [tool]}
          - {kind: component, names: [vx, vy, vz, wx, wy, wz]}
 
-In the YAML, spatial fields are grouped under ``spatial``. 
+.. _spatial-yaml-fields:
+
+Spatial fields in YAML
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Spatial fields are grouped under ``spatial``. Convenience helpers emit the
+following fields even when their values use the global default:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 35 20
+
+   * - Helper family
+     - Fields emitted under ``spatial``
+     - Default values
+   * - Pose, position, orientation
+     - ``reference``
+     - ``null``
+   * - Twist, linear/angular velocity, acceleration
+     - ``reference``, ``expressed_in``
+     - Both ``null``
+   * - Wrench, force-application position
+     - ``expressed_in``
+     - ``null``
+
+Here, ``null`` means global. A non-null ``expressed_in`` uses either
+``{frame: <name>}`` or ``{selector: self/reference}``, subject to the helper's
+accepted selectors. The selector value is either ``self`` or ``reference``.
+This table describes convenience-helper output; custom string kinds alone do
+not activate those defaults.
+
+Other annotations may omit ``spatial`` or its fields. Missing spatial fields
+also mean global for applicable spatial quantities. See
+:ref:`yaml-minimum-contract` for the full required/optional field contract.
 
 Wrenches and the force application position
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

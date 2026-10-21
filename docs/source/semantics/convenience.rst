@@ -80,6 +80,9 @@ position input using the same helper:
            axes:
            - {kind: element, names: [shoulder, elbow]}
 
+Helpers default to ``is_setpoint=None``, which omits the field from YAML.
+Explicit ``True`` or ``False`` values are preserved; outputs reject ``True``.
+
 These objects describe inputs; registration connects them to a node. See
 :doc:`usage` for an explanation of setpoints and a complete controller export
 using both annotations.

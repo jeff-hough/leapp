@@ -195,7 +195,7 @@ def test_all_kinds_have_public_helpers(kind):
     annotation = helper("value", torch.zeros(1), **kwargs)
     assert annotation.kind == kind
     assert annotation.axes is None
-    assert not annotation.is_setpoint
+    assert annotation.is_setpoint is None
 
 
 @pytest.mark.parametrize(
@@ -210,6 +210,40 @@ def test_image_preserves_tensor_dtype_and_partial_axes(ref):
     entry = TensorDescription("camera", ref, annotation).dict()
     assert entry["dtype"] == "uint8"
     assert entry["shape"] == [3, 4, 5]
+
+
+@pytest.mark.parametrize(
+    "factory", [TensorSemantics, *[getattr(leapp, k.name.lower()) for k in Kind]]
+)
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"is_setpoint": None}, {"is_setpoint": False}, {"is_setpoint": True}]
+)
+def test_optional_setpoint_yaml(factory, kwargs):
+    ref = torch.zeros(1)
+    annotation = factory("value", ref, **kwargs)
+    entry = yaml.safe_load(
+        yaml.dump(TensorDescription("value", ref, annotation).dict())
+    )
+    expected = kwargs.get("is_setpoint")
+    assert annotation.is_setpoint is expected
+    if expected is None:
+        assert "is_setpoint" not in entry
+    else:
+        assert entry["is_setpoint"] is expected
+
+
+def test_setpoint_updates_preserve_false_and_clear_with_none():
+    annotation = leapp.joint_position("q", torch.zeros(1), is_setpoint=True)
+    annotation.update({"is_setpoint": False})
+    assert annotation.to_dict()["is_setpoint"] is False
+    annotation.update({"is_setpoint": None})
+    assert "is_setpoint" not in annotation.to_dict()
+
+
+@pytest.mark.parametrize("value", [0, 1, "false", "true", [], {}])
+def test_setpoint_rejects_non_boolean_values(value):
+    with pytest.raises(TypeError, match="boolean or None"):
+        TensorSemantics("x", torch.zeros(1), is_setpoint=value)
 
 
 def test_setpoint_is_boolean_and_not_overridable_in_extra():

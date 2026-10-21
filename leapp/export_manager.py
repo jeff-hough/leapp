@@ -241,7 +241,7 @@ class ExportManager:
                 for semantics in metadata.values():
                     if semantics.is_setpoint:
                         raise ValueError(
-                            "is_setpoint=True applies only to inputs; omit it on outputs"
+                            "is_setpoint=True applies only to inputs; use False or None on outputs"
                         )
 
         if is_tracable_tensor_type(tensors):

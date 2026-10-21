@@ -53,36 +53,44 @@ def _annotate(kind, name, ref, *, axes, is_setpoint, **spatial):
     return annotation
 
 
-def joint_position(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def joint_position(
+    name, ref, *, axes=None, is_setpoint: bool | None = None
+) -> TensorSemantics:
     return _annotate(Kind.JOINT_POSITION, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
-def joint_velocity(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def joint_velocity(
+    name, ref, *, axes=None, is_setpoint: bool | None = None
+) -> TensorSemantics:
     return _annotate(Kind.JOINT_VELOCITY, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
-def joint_effort(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def joint_effort(
+    name, ref, *, axes=None, is_setpoint: bool | None = None
+) -> TensorSemantics:
     return _annotate(Kind.JOINT_EFFORT, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
-def vector3d(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def vector3d(
+    name, ref, *, axes=None, is_setpoint: bool | None = None
+) -> TensorSemantics:
     return _annotate(Kind.VECTOR3D, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
-def kp(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def kp(name, ref, *, axes=None, is_setpoint: bool | None = None) -> TensorSemantics:
     return _annotate(Kind.KP, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
-def kd(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def kd(name, ref, *, axes=None, is_setpoint: bool | None = None) -> TensorSemantics:
     return _annotate(Kind.KD, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
-def image(name, ref, *, axes=None, is_setpoint=False) -> TensorSemantics:
+def image(name, ref, *, axes=None, is_setpoint: bool | None = None) -> TensorSemantics:
     return _annotate(Kind.IMAGE, name, ref, axes=axes, is_setpoint=is_setpoint)
 
 
 def frame_pose(
-    name, ref, *, reference=None, axes=None, is_setpoint=False
+    name, ref, *, reference=None, axes=None, is_setpoint: bool | None = None
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_POSE,
@@ -95,7 +103,7 @@ def frame_pose(
 
 
 def frame_position(
-    name, ref, *, reference=None, axes=None, is_setpoint=False
+    name, ref, *, reference=None, axes=None, is_setpoint: bool | None = None
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_POSITION,
@@ -108,7 +116,7 @@ def frame_position(
 
 
 def frame_orientation(
-    name, ref, *, reference=None, axes=None, is_setpoint=False
+    name, ref, *, reference=None, axes=None, is_setpoint: bool | None = None
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_ORIENTATION,
@@ -121,7 +129,13 @@ def frame_orientation(
 
 
 def frame_twist(
-    name, ref, *, reference=None, expressed_in=None, axes=None, is_setpoint=False
+    name,
+    ref,
+    *,
+    reference=None,
+    expressed_in=None,
+    axes=None,
+    is_setpoint: bool | None = None,
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_TWIST,
@@ -135,7 +149,13 @@ def frame_twist(
 
 
 def frame_linear_velocity(
-    name, ref, *, reference=None, expressed_in=None, axes=None, is_setpoint=False
+    name,
+    ref,
+    *,
+    reference=None,
+    expressed_in=None,
+    axes=None,
+    is_setpoint: bool | None = None,
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_LINEAR_VELOCITY,
@@ -149,7 +169,13 @@ def frame_linear_velocity(
 
 
 def frame_angular_velocity(
-    name, ref, *, reference=None, expressed_in=None, axes=None, is_setpoint=False
+    name,
+    ref,
+    *,
+    reference=None,
+    expressed_in=None,
+    axes=None,
+    is_setpoint: bool | None = None,
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_ANGULAR_VELOCITY,
@@ -163,7 +189,13 @@ def frame_angular_velocity(
 
 
 def frame_acceleration(
-    name, ref, *, reference=None, expressed_in=None, axes=None, is_setpoint=False
+    name,
+    ref,
+    *,
+    reference=None,
+    expressed_in=None,
+    axes=None,
+    is_setpoint: bool | None = None,
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_ACCELERATION,
@@ -177,7 +209,13 @@ def frame_acceleration(
 
 
 def frame_linear_acceleration(
-    name, ref, *, reference=None, expressed_in=None, axes=None, is_setpoint=False
+    name,
+    ref,
+    *,
+    reference=None,
+    expressed_in=None,
+    axes=None,
+    is_setpoint: bool | None = None,
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_LINEAR_ACCELERATION,
@@ -191,7 +229,13 @@ def frame_linear_acceleration(
 
 
 def frame_angular_acceleration(
-    name, ref, *, reference=None, expressed_in=None, axes=None, is_setpoint=False
+    name,
+    ref,
+    *,
+    reference=None,
+    expressed_in=None,
+    axes=None,
+    is_setpoint: bool | None = None,
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_ANGULAR_ACCELERATION,
@@ -205,7 +249,7 @@ def frame_angular_acceleration(
 
 
 def frame_wrench(
-    name, ref, *, expressed_in=None, axes=None, is_setpoint=False
+    name, ref, *, expressed_in=None, axes=None, is_setpoint: bool | None = None
 ) -> TensorSemantics:
     return _annotate(
         Kind.FRAME_WRENCH,
@@ -218,7 +262,7 @@ def frame_wrench(
 
 
 def force_application_position(
-    name, ref, *, expressed_in=None, axes=None, is_setpoint=False
+    name, ref, *, expressed_in=None, axes=None, is_setpoint: bool | None = None
 ) -> TensorSemantics:
     """Position where a force acts, paired by element name with its wrench."""
     return _annotate(

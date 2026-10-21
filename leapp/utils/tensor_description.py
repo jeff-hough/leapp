@@ -203,7 +203,7 @@ class TensorSemantics:
 
     # Experimental fields are keyword-only to preserve the existing constructor.
     axes: list[Axis | None] | None = field(default=None, kw_only=True)
-    is_setpoint: bool = field(default=False, kw_only=True)
+    is_setpoint: bool | None = field(default=None, kw_only=True)
     reference: str | None = field(default=None, kw_only=True)
     expressed_in: ExpressionFrame | str | None = field(default=None, kw_only=True)
 
@@ -212,7 +212,7 @@ class TensorSemantics:
         return (
             isinstance(self.kind, Kind)
             or self.axes is not None
-            or self.is_setpoint is not False
+            or self.is_setpoint is not None
             or self.reference is not None
             or self.expressed_in is not None
         )
@@ -249,8 +249,8 @@ class TensorSemantics:
             raise TypeError(
                 "kind must be an existing kind enum, Kind, non-empty string, or None"
             )
-        if not isinstance(self.is_setpoint, bool):
-            raise TypeError("is_setpoint must be a boolean")
+        if self.is_setpoint is not None and not isinstance(self.is_setpoint, bool):
+            raise TypeError("is_setpoint must be a boolean or None")
         if self.reference is not None and (
             not isinstance(self.reference, str) or not self.reference
         ):
@@ -308,8 +308,6 @@ class TensorSemantics:
             ):
                 continue
             value = getattr(self, f.name)
-            if f.name == "is_setpoint" and not value:
-                continue
             if f.name == "axes" and value is not None:
                 value = [axis.to_dict() if axis is not None else None for axis in value]
             if value is not None:

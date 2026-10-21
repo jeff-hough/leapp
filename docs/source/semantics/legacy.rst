@@ -243,7 +243,7 @@ Used with :func:`~leapp.annotate.output_tensors`. These represent
    plain strings.
 
 ``element_names``
------------------
+~~~~~~~~~~~~~~~~~
 
 The ``element_names`` field provides human-readable names for the
 elements along each dimension of a tensor. The canonical format is

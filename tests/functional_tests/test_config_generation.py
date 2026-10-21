@@ -743,6 +743,43 @@ class TestStructuredSemantics(LEAPPFunctionalTestBase):
         )
         torch.testing.assert_close(result["policy/effort"], target - q)
 
+    def test_optional_setpoint_values_survive_export(self):
+        leapp.start(name=self.TEST_GRAPH_NAME)
+        omitted, unspecified, measured, target = leapp.annotate.input_tensors(
+            "policy",
+            [
+                leapp.joint_position("omitted", torch.ones(2)),
+                leapp.joint_position("unspecified", torch.ones(2), is_setpoint=None),
+                leapp.joint_position("measured", torch.ones(2), is_setpoint=False),
+                leapp.joint_position("target", torch.ones(2), is_setpoint=True),
+            ],
+        )
+        leapp.annotate.output_tensors(
+            "policy",
+            leapp.joint_effort(
+                "effort", omitted + unspecified + target - measured, is_setpoint=False
+            ),
+            export_with="jit",
+        )
+        leapp.stop()
+        self.assertTrue(leapp.compile_graph(visualize=False))
+        path = os.path.join(self.TEST_GRAPH_NAME, self.TEST_GRAPH_NAME + ".yaml")
+        with open(path) as stream:
+            node = yaml.safe_load(stream)["models"]["policy"]
+        self.assertNotIn("is_setpoint", node["inputs"][0])
+        self.assertNotIn("is_setpoint", node["inputs"][1])
+        self.assertIs(node["inputs"][2]["is_setpoint"], False)
+        self.assertIs(node["inputs"][3]["is_setpoint"], True)
+        self.assertIs(node["outputs"][0]["is_setpoint"], False)
+        runtime = leapp.InferenceManager(path)
+        result = runtime(
+            {
+                f"policy/{name}": torch.ones(2)
+                for name in ("omitted", "unspecified", "measured", "target")
+            }
+        )
+        torch.testing.assert_close(result["policy/effort"], torch.full((2,), 2.0))
+
     def test_setpoints_rejected_on_outputs_and_static_outputs(self):
         for static in (False, True):
             with self.subTest(static=static):
