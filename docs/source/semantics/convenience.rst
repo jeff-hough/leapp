@@ -12,16 +12,13 @@ pass to ``annotate.input_tensors`` or ``annotate.output_tensors``.
 
    The convenience helpers and their quantity, axis, and spatial metadata are
    experimental. They are imported directly from ``leapp`` and may evolve.
-   The existing APIs remain fully supported and are not deprecated; see
-   :doc:`legacy`.
 
 Choosing a helper
 =================
 
-Choose a helper from the physical meaning of the values, not the variable name.
-For example, an ``actions`` tensor might contain desired positions, velocities,
-or efforts. Use the helper that matches the controller's actual contract.
-The helper does not convert between these quantities.
+Once you have identified :ref:`the quantity your tensor represents
+<semantics-quantities>`, use the matching helper below. Each name describes the
+annotation it creates.
 
 .. list-table::
    :header-rows: 1
@@ -46,72 +43,90 @@ The helper does not convert between these quantities.
    * - ``image``
      - Image data with layout and encoding agreed with the consumer.
 
-A measured value and a desired value can have the same quantity. The input or
-output registration determines direction. Set ``is_setpoint=True`` for an
-incoming desired value; do not set it for outputs, which reject that flag.
+For example, construct annotations for measured joint positions and a desired
+position input using the same helper:
 
-.. code-block:: python
+.. tabs::
 
-   import torch
-   from leapp import Axis, AxisKind, joint_position
+   .. tab:: Python
 
-   q = torch.tensor([0.1, -0.2])
-   target = torch.tensor([0.4, 0.3])
-   joint_axes = [Axis(AxisKind.ELEMENT, names=["shoulder", "elbow"])]
+      .. code-block:: python
 
-   measured = joint_position("q", q, axes=joint_axes)
-   desired = joint_position("q_target", target, axes=joint_axes, is_setpoint=True)
+         import torch
+         from leapp import Axis, AxisKind, joint_position
+
+         q = torch.tensor([0.1, -0.2])
+         target = torch.tensor([0.4, 0.3])
+         joint_axes = [Axis(AxisKind.ELEMENT, names=["shoulder", "elbow"])]
+
+         # Describe the measured positions, then mark the desired positions as a setpoint.
+         measured = joint_position("q", q, axes=joint_axes)
+         desired = joint_position("q_target", target, axes=joint_axes, is_setpoint=True)
+
+   .. tab:: YAML
+
+      Input metadata after registration and export; dtype, shape, and type are omitted.
+
+      .. code-block:: yaml
+
+         inputs:
+         - name: q
+           kind: joint/position
+           axes:
+           - {kind: element, names: [shoulder, elbow]}
+         - name: q_target
+           kind: joint/position
+           is_setpoint: true
+           axes:
+           - {kind: element, names: [shoulder, elbow]}
 
 These objects describe inputs; registration connects them to a node. See
-:doc:`usage` for a complete controller export using both annotations.
+:doc:`usage` for an explanation of setpoints and a complete controller export
+using both annotations.
 
-Shared arguments and spatial choices
-====================================
+.. _semantics-helper-spatial-arguments:
 
-Every helper takes ``name`` and ``ref`` (the tensor), plus the keyword-only
-arguments ``axes=None`` and ``is_setpoint=False``. Include axes when the consumer
-needs labels or timing; omitted dimensions are not inferred. See
-:doc:`kind_element_names` for axis layout and :ref:`semantics-time-axes` for
-sample timing.
+Spatial choices
+===============
 
-Spatial helpers also accept the fields appropriate to their quantity:
+Spatial helpers only accept the spatial arguments appropriate for their
+quantity. The table distinguishes which arguments are available from which
+values they accept:
 
-* Pose, position, and orientation accept ``reference=None``.
-* Velocity and acceleration helpers accept ``reference=None`` and
-  ``expressed_in=None``.
-* Wrench and force-application-position helpers accept ``expressed_in=None``.
-  They do not accept ``reference`` or ``ExpressionFrame.REFERENCE``.
+.. list-table::
+   :header-rows: 1
+   :widths: 35 30 35
 
-``None`` means global. Use a frame name for an explicit reference or expression
-frame, or ``ExpressionFrame.SELF`` / ``ExpressionFrame.REFERENCE`` to select a
-basis relative to the annotation. For example, a tool's velocity relative to
-its base can be expressed in the tool's own coordinates:
+   * - Helpers
+     - ``reference``
+     - ``expressed_in``
+   * - Pose, position, orientation
+     - Frame name or ``None``
+     - Not accepted, always expressed in the same frame as ``reference``
+   * - Twist, linear/angular velocity, and acceleration
+     - Frame name or ``None``
+     - Frame name, ``None``, ``SELF``, or ``REFERENCE``
+   * - Wrench, force-application position
+     - Not accepted, does not describe a quantity relative to another frame
+     - Frame name, ``None``, or ``SELF``
 
-.. code-block:: python
-
-   import torch
-   from leapp import Axis, AxisKind, ExpressionFrame, frame_twist
-
-   tool_velocity = torch.zeros(1, 6)
-   motion = frame_twist(
-       "tool_velocity", tool_velocity,
-       reference="base",
-       expressed_in=ExpressionFrame.SELF,
-       axes=[
-           Axis(AxisKind.ELEMENT, names=["tool"]),
-           Axis(AxisKind.COMPONENT, names=["vx", "vy", "vz", "wx", "wy", "wz"]),
-       ],
-   )
-
-This records the existing convention; it does not rotate or transform values.
-A literal string ``"self"`` names a frame and differs from the enum selector.
+Both arguments default to ``None`` wherever they are accepted. 
+Wrench and force-application-position helpers reject ``REFERENCE`` because
+they do not accept a ``reference`` argument.
 
 Validation and the generic constructor
 ======================================
 
-Helpers check supplied component labels for common spatial quantities. This
-catches inconsistent metadata before export. The following labels may appear
-in any order, but must match the tensor's actual component order:
+Helpers enforce standard component names for the common quantities listed
+below. If you provide names on a ``COMPONENT`` axis, they must contain exactly
+the names listed for that helper, with no missing, repeated, or additional
+names. Other names raise ``ValueError``. This gives consumers a consistent
+vocabulary for these quantities.
+
+Any ordering of the required names is accepted. You should make sure that order
+matches what you actually have in your tensor: LEAPP cannot check the physical
+meaning of the values, so incorrect ordering can still pass validation and
+export successfully.
 
 .. list-table::
    :header-rows: 1
@@ -131,10 +146,69 @@ in any order, but must match the tensor's actual component order:
    * - ``frame_angular_velocity``
      - ``wx, wy, wz``
 
+For a position, the required names are ``x``, ``y``, and ``z``. These examples
+show accepted permutations and rejected name selections:
+
+.. tabs::
+
+   .. tab:: Python
+
+      .. code-block:: python
+
+         import torch
+         from leapp import Axis, AxisKind, frame_position
+
+         # Accepted: labels match the position components in the tensor.
+         xyz = torch.tensor([1.0, 2.0, 3.0])
+         position = frame_position(
+             "position", xyz,
+             axes=[Axis(AxisKind.COMPONENT, names=["x", "y", "z"])],
+         )
+
+         # Accepted: a different order, with values and labels both ordered z, x, y.
+         zxy = torch.tensor([3.0, 1.0, 2.0])
+         reordered_position = frame_position(
+             "position", zxy,
+             axes=[Axis(AxisKind.COMPONENT, names=["z", "x", "y"])],
+         )
+
+         # Rejected (ValueError): velocity labels cannot describe a position.
+         frame_position(
+             "position", xyz,
+             axes=[Axis(AxisKind.COMPONENT, names=["vx", "vy", "vz"])],
+         )
+
+         # Rejected (ValueError): z is missing and y appears twice.
+         frame_position(
+             "position", xyz,
+             axes=[Axis(AxisKind.COMPONENT, names=["x", "y", "y"])],
+         )
+
+   .. tab:: YAML and errors
+
+      The accepted calls produce these semantic fields when exported separately.
+      Both rejected calls raise ``ValueError`` during construction, so neither
+      produces YAML. Run rejected calls individually to observe each error.
+
+      .. code-block:: yaml
+
+         # Accepted: values ordered x, y, z
+         name: position
+         kind: frame/position
+         axes:
+         - {kind: component, names: [x, y, z]}
+         spatial: {reference: null}
+
+         ---
+         # Accepted: values ordered z, x, y
+         name: position
+         kind: frame/position
+         axes:
+         - {kind: component, names: [z, x, y]}
+         spatial: {reference: null}
+
 These checks apply when names are supplied on a ``COMPONENT`` axis. Helpers do
-not infer missing labels or change the underlying representation. Acceleration
-and wrench component conventions remain consumer-defined. Image annotations
-likewise do not assume channel order, color encoding, or normalization.
+not infer missing labels or change the underlying representation.
 
 Use ``TensorSemantics`` directly for custom conventions or additional ``extra``
 metadata. For joint positions, the helper is equivalent to:
@@ -146,7 +220,4 @@ metadata. For joint positions, the helper is equivalent to:
    measured = TensorSemantics("q", q, kind=Kind.JOINT_POSITION, axes=joint_axes)
 
 The generic constructor validates metadata structure without the helper-specific
-component-name checks. Explicit spatial fields are preserved even for kinds
-that do not normally use them; confirm that the consumer supports the chosen
-combination. See :doc:`kind_element_names` for kind values and
-:doc:`/api/index` for the constructor signature.
+component-name checks. 

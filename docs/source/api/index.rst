@@ -343,7 +343,8 @@ Semantic metadata
                    expressed_in=None)
 
 * ``name`` and ``ref`` supply the port name and tensor value.
-* ``kind`` accepts ``Kind``, existing enums, custom strings, or ``None``.
+* ``kind`` accepts ``Kind``, ``InputKindEnum``, ``OutputKindEnum``,
+  custom strings, or ``None``.
 * ``axes`` accepts ``None`` or a list of ``Axis`` / ``None`` entries, one per
   tensor dimension. Names must match the dimension size.
 * ``is_setpoint=True`` marks an incoming reference. Outputs reject it.
@@ -352,7 +353,8 @@ Semantic metadata
   ``ExpressionFrame.REFERENCE``, or ``None`` (global).
 * ``extra`` is a dictionary flattened into the tensor YAML entry. Use it only
   for agreed consumer-specific metadata and avoid built-in field names.
-* ``element_names`` retains its original behavior and cannot accompany ``axes``.
+* ``element_names`` supplies element labels and cannot accompany ``axes``.
+  See :doc:`/semantics/legacy` for accepted formats.
 
 Pass a single annotation or a homogeneous list directly, never inside a dict
 or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
@@ -376,11 +378,6 @@ Axis kinds also accept custom strings. Time axes require a finite, positive
 See :doc:`/semantics/kind_element_names` for the ``Kind`` catalog and spatial fields,
 :doc:`/semantics/convenience` for helpers and component validation, and
 :ref:`semantics-time-axes` for time axes.
-
-The existing ``InputKindEnum``, ``OutputKindEnum``, ``TemporalAxis``, and
-``element_names`` APIs remain **fully supported and are not deprecated**.
-Existing positional arguments retain their meanings. Their enum tables,
-examples, and original YAML representation are in :doc:`/semantics/legacy`.
 
 Annotations
 ===========

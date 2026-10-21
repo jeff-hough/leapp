@@ -210,8 +210,8 @@ Semantic Fields
    may evolve in future releases.
 
 Semantic fields are optional tensor-port fields. The example above uses the
-newer quantity and axis representation. Existing annotations retain their
-original YAML; see :doc:`semantics/legacy` for the fully supported legacy API.
+quantity and axis representation. See :doc:`semantics/legacy` for the
+``element_names`` representation.
 
 ``kind`` and ``is_setpoint``
 ----------------------------

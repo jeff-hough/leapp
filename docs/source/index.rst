@@ -197,8 +197,8 @@ Documentation Map
    :maxdepth: 2
 
    semantics/usage
-   semantics/convenience
    semantics/kind_element_names
+   semantics/convenience
    semantics/legacy
 
 .. toctree::

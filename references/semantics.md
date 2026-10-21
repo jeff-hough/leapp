@@ -2,7 +2,7 @@
 
 Read this when a user requests semantic metadata or a deployment consumer needs it. For recurrent buffers and episode resets, use [state](state.md) independently.
 
-Online references: [usage and passing conventions](https://nvidia-isaac.github.io/leapp/semantics/usage.html), [convenience helpers](https://nvidia-isaac.github.io/leapp/semantics/convenience.html), [standard kinds and axes](https://nvidia-isaac.github.io/leapp/semantics/kind_element_names.html), [temporal axes](https://nvidia-isaac.github.io/leapp/semantics/kind_element_names.html#semantics-time-axes), [API](https://nvidia-isaac.github.io/leapp/api/index.html). Check these for the current API; a local source checkout is not required.
+Online references: [usage and passing conventions](https://nvidia-isaac.github.io/leapp/semantics/usage.html), [standard kinds and axes](https://nvidia-isaac.github.io/leapp/semantics/kind_element_names.html), [convenience helpers](https://nvidia-isaac.github.io/leapp/semantics/convenience.html), [temporal axes](https://nvidia-isaac.github.io/leapp/semantics/kind_element_names.html#semantics-time-axes), [API](https://nvidia-isaac.github.io/leapp/api/index.html). Check these for the current API; a local source checkout is not required.
 
 ## Decide whether metadata has a consumer
 

@@ -10,10 +10,23 @@ Tensor Semantics Usage
    are experimental. They are imported directly from ``leapp``. Their contract
    may evolve in future releases.
 
+.. note::
+
+   The interfaces presented here are intended to replace ``InputKindEnum``,
+   ``OutputKindEnum``, ``element_names``, and ``TemporalAxis``. They are
+   experimental; the legacy APIs remain fully supported and are not deprecated.
+   See :doc:`legacy` for their reference and optional migration guidance.
+
 A tensor's shape tells a runtime how many values to expect, but not what those
-values mean. For example, two tensors shaped ``[1, 2]`` might contain measured
-joint positions and desired joint positions. A controller also needs to know
-which column belongs to which joint before it can use either tensor safely.
+values mean. For example, a tensor shaped ``[1, 2]`` might contain:
+
+* measured or desired joint positions;
+* joint velocities or efforts;
+* proportional or derivative gains;
+* many other quantities.
+
+A controller also needs to know which column belongs to which joint before
+it can interpret those values correctly.
 
 Semantic annotations record this meaning alongside the tensor in the exported
 YAML. They help a robot runtime, simulator, or controller connect model ports
@@ -22,20 +35,33 @@ Use them when a downstream consumer needs this information; ordinary named
 raw tensors are sufficient when names, shapes, and dtypes already define the
 interface.
 
-The newer API describes three parts of that contract:
+Semantic annotations describe four parts of that contract:
 
-* **Quantity and purpose:** ``Kind`` identifies what is measured or produced;
-  ``is_setpoint`` distinguishes an incoming desired value from a measurement.
+* **Quantity:** ``Kind`` identifies what the tensor represents; see
+  :ref:`semantics-quantities` for built-in, custom, and unspecified kinds.
+* **Purpose:** a setpoint is a desired value that a controller aims to reach
+  or maintain. For example, a controller may receive both a joint's measured
+  position and the position it should move to. Both have the same ``Kind``,
+  but the desired-position input uses ``is_setpoint=True`` to distinguish it
+  from the measurement. This flag applies only to inputs.
 * **Layout:** ``Axis`` identifies the elements, components, or time samples
-  along each tensor dimension.
+  along each tensor dimension. A joint-position tensor shaped ``[2, 3]`` could
+  describe two robots with three joints each (axes ordered as robot, joint),
+  or three robots with two joints each (axes ordered as joint, robot). The
+  order of the ``Axis`` entries tells the consumer how to interpret the
+  dimensions; it must match the tensor's actual layout.
 * **Frames:** spatial metadata identifies the reference frame and coordinate
-  basis for quantities such as position and velocity.
+  basis for quantities such as position and velocity. For example, a tool's
+  position relative to the robot base differs from its position relative to
+  the room. Likewise, moving along the tool's x-axis may mean a different
+  direction from moving along the room's x-axis. ``reference`` identifies
+  what a position or motion is relative to; ``expressed_in`` identifies whose
+  coordinate axes describe the components. This tells the consumer how to
+  interpret the values without guessing the frame convention.
 
 The :doc:`convenience` helpers provide a concise way to construct these
 annotations. Start with the controller example below, then see
 :doc:`kind_element_names` for the meaning of individual fields.
-The existing APIs remain fully supported and are not deprecated; see
-:doc:`legacy` for their examples and optional migration guidance.
 
 .. note::
 
@@ -47,89 +73,124 @@ The existing APIs remain fully supported and are not deprecated; see
 General Usage
 =============
 
-The helpers return ``TensorSemantics`` objects, which can be passed individually
-or as a list. This example exports a small joint controller for one two-joint
-robot: measured positions and velocities, a position setpoint, and an effort
-output. Each tensor has shape ``[robot, joint]`` and shares the same axes.
+This example exports a simplified joint controller:
 
-.. code-block:: python
+* The robot has two joints: shoulder and elbow.
+* Inputs are measured joint positions, measured joint velocities, and desired
+  joint positions (the position setpoint).
+* The output is a joint effort command.
+* Each tensor has shape ``[1, 2]``, representing ``[robot, joint]``, and shares
+  the same axis labels.
+* Quantity helpers return ``TensorSemantics`` objects. We pass the inputs as
+  a list and the output as a single object.
 
-   import torch
-   import leapp
-   from leapp import annotate, Axis, AxisKind
-   from leapp import joint_position, joint_velocity, joint_effort
+For each joint, the controller computes:
 
-   q = torch.tensor([[0.1, -0.2]])
-   dq = torch.zeros(1, 2)
-   q_target = torch.tensor([[0.4, 0.3]])
-   joint_axes = [
-       Axis(AxisKind.ROBOT, names=["robot0"]),
-       Axis(AxisKind.ELEMENT, names=["shoulder", "elbow"]),
-   ]
+.. math::
 
-   leapp.start("joint_controller")
-   q_in, dq_in, target_in = annotate.input_tensors("controller", [
-       joint_position("q", q, axes=joint_axes),
-       joint_velocity("dq", dq, axes=joint_axes),
-       joint_position("q_target", q_target, axes=joint_axes, is_setpoint=True),
-   ])
+   \tau = K_p (q_{\mathrm{target}} - q) - K_d \dot{q}
 
-   # A simple proportional/derivative controller.
-   effort = 20.0 * (target_in - q_in) - 2.0 * dq_in
-   annotate.output_tensors(
-       "controller",
-       joint_effort("effort", effort, axes=joint_axes),
-       export_with="jit",
-   )
-   leapp.stop()
-   leapp.compile_graph(visualize=False)
+Here, :math:`q` is measured position, :math:`\dot{q}` is measured velocity,
+and :math:`q_{\mathrm{target}}` is desired position. The proportional term
+pulls the joint toward its target; the velocity term adds damping, with zero
+desired velocity. We use :math:`K_p = 20` and :math:`K_d = 2` for both joints.
+For these rotational joints, the effort :math:`\tau` represents torque.
+
+This is a simplified example for demonstrating annotation and export. The gains
+are illustrative; the computation omits robot dynamics, actuator limits, and
+other considerations needed for a deployed controller.
+
+.. tabs::
+
+   .. tab:: Python
+
+      .. code-block:: python
+
+         import torch
+         import leapp
+         from leapp import annotate, Axis, AxisKind
+         from leapp import joint_position, joint_velocity, joint_effort
+
+         # Sample values for tracing: one robot, with shoulder then elbow values.
+         q = torch.tensor([[0.1, -0.2]])
+         dq = torch.zeros(1, 2)
+         q_target = torch.tensor([[0.4, 0.3]])
+         # Describe what each dimension indexes, using the same order as the tensors.
+         joint_axes = [
+             Axis(AxisKind.ROBOT, names=["robot0"]),
+             Axis(AxisKind.ELEMENT, names=["shoulder", "elbow"]),
+         ]
+
+         # Begin capturing the computation in a graph named joint_controller.
+         leapp.start("joint_controller")
+         # Declare the controller inputs and their meaning. Only q_target is desired.
+         # Use the returned traced tensors in the computation below.
+         q_in, dq_in, target_in = annotate.input_tensors("controller", [
+             joint_position("q", q, axes=joint_axes),
+             joint_velocity("dq", dq, axes=joint_axes),
+             joint_position("q_target", q_target, axes=joint_axes, is_setpoint=True),
+         ])
+
+         # Compute effort from position error and velocity damping, per joint.
+         effort = 20.0 * (target_in - q_in) - 2.0 * dq_in
+         # Publish the effort output and select TorchScript (jit) for this node.
+         annotate.output_tensors(
+             "controller",
+             joint_effort("effort", effort, axes=joint_axes),
+             export_with="jit",
+         )
+         # Finish tracing, then write the model and YAML metadata to disk.
+         leapp.stop()
+         leapp.compile_graph(visualize=False)
+
+   .. tab:: YAML
+
+      The generated YAML includes these tensor descriptions (model parameters and
+      pipeline wiring are omitted here):
+
+      .. code-block:: yaml
+
+         models:
+           controller:
+             inputs:
+             - name: q
+               dtype: float32
+               shape: [1, 2]
+               type: tensor
+               kind: joint/position
+               axes:
+               - {kind: robot, names: [robot0]}
+               - {kind: element, names: [shoulder, elbow]}
+             - name: dq
+               dtype: float32
+               shape: [1, 2]
+               type: tensor
+               kind: joint/velocity
+               axes:
+               - {kind: robot, names: [robot0]}
+               - {kind: element, names: [shoulder, elbow]}
+             - name: q_target
+               dtype: float32
+               shape: [1, 2]
+               type: tensor
+               kind: joint/position
+               is_setpoint: true
+               axes:
+               - {kind: robot, names: [robot0]}
+               - {kind: element, names: [shoulder, elbow]}
+             outputs:
+             - name: effort
+               dtype: float32
+               shape: [1, 2]
+               type: tensor
+               kind: joint/effort
+               axes:
+               - {kind: robot, names: [robot0]}
+               - {kind: element, names: [shoulder, elbow]}
 
 The input/output lists determine direction. Only ``q_target`` is marked as a
 setpoint; measured inputs use the default ``is_setpoint=False``. The same Kind
 can describe measured and requested positions, and outputs need no extra flag.
-
-The generated YAML includes these tensor descriptions (model parameters and
-pipeline wiring are omitted here):
-
-.. code-block:: yaml
-
-   models:
-     controller:
-       inputs:
-       - name: q
-         dtype: float32
-         shape: [1, 2]
-         type: tensor
-         kind: joint/position
-         axes:
-         - {kind: robot, names: [robot0]}
-         - {kind: element, names: [shoulder, elbow]}
-       - name: dq
-         dtype: float32
-         shape: [1, 2]
-         type: tensor
-         kind: joint/velocity
-         axes:
-         - {kind: robot, names: [robot0]}
-         - {kind: element, names: [shoulder, elbow]}
-       - name: q_target
-         dtype: float32
-         shape: [1, 2]
-         type: tensor
-         kind: joint/position
-         is_setpoint: true
-         axes:
-         - {kind: robot, names: [robot0]}
-         - {kind: element, names: [shoulder, elbow]}
-       outputs:
-       - name: effort
-         dtype: float32
-         shape: [1, 2]
-         type: tensor
-         kind: joint/effort
-         axes:
-         - {kind: robot, names: [robot0]}
-         - {kind: element, names: [shoulder, elbow]}
 
 Helpers are optional. For example, the first input can also be written as:
 
@@ -293,8 +354,7 @@ key.
        frequency: 50
        skip-first-run: true
 
-Graph-level semantics are independent of tensor-level temporal metadata. LEAPP
-does not validate time-axis periods against ``GraphConfigs.frequency``.
+Graph-level semantics are independent of tensor-level temporal metadata.
 
-See :doc:`convenience` for helper selection, :doc:`kind_element_names` for
-quantities, axes, and spatial metadata, and :doc:`legacy` for existing APIs.
+See :doc:`kind_element_names` for quantities, axes, and spatial metadata,
+then :doc:`convenience` for helper selection.

@@ -4,8 +4,8 @@ Legacy Semantics API
 
 The APIs on this page are **fully supported and are not deprecated**.
 Existing annotations retain their behavior and YAML representation; migration
-is optional. They may coexist with newer annotations in the same graph or
-annotation list. See :doc:`usage` for the newer, experimental API.
+is optional. They may coexist with quantity and axis annotations in the same graph or
+annotation list. See :doc:`usage` for quantity and axis annotations.
 
 Usage
 =====
@@ -283,7 +283,6 @@ automatically:
    # Name a single element.
    TensorSemantics("gravity", tensor, element_names="z")
 
-
 Temporal metadata
 =================
 
@@ -311,6 +310,8 @@ field on the tensor entry.
        ],
    )
 
+Tensor metadata after registration and export.
+
 .. code-block:: yaml
 
    - name: actions
@@ -337,7 +338,7 @@ Downstream consumers can find the temporal axis by locating
 Optional migration
 ==================
 
-First confirm that the downstream consumer supports the newer metadata.
+First confirm that the downstream consumer supports quantity kinds and axis metadata.
 Replace enum kinds with the matching quantity helper or ``Kind``; input/output
 lists now carry direction. Incoming ``COMMAND_*`` references become
 ``is_setpoint=True`` inputs. Outputs must not set that flag. Joint torques use
@@ -351,3 +352,11 @@ dimension and ``None`` for unspecified dimensions. Use
 ``Axis(AxisKind.TIME, period_ms=...)`` for temporal metadata. Never supply
 both ``axes`` and ``element_names``. See :doc:`kind_element_names` and
 :ref:`semantics-time-axes` for validation and the resulting YAML.
+
+Updating annotations
+====================
+
+On a legacy annotation, ``update()`` stores experimental field names as custom
+``extra`` metadata. Construct the annotation with an experimental field or use
+``Kind`` to enable experimental field updates. Quantity and axis annotations
+can coexist with legacy annotations in a graph or annotation list.
