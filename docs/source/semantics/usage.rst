@@ -356,5 +356,5 @@ key.
 
 Graph-level semantics are independent of tensor-level temporal metadata.
 
-See :doc:`kind_element_names` for quantities, axes, and spatial metadata,
-then :doc:`convenience` for helper selection.
+See :doc:`kind_element_names` for quantities and axes, :doc:`spatial` for
+spatial metadata, then :doc:`convenience` for helper selection.

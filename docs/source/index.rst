@@ -198,6 +198,7 @@ Documentation Map
 
    semantics/usage
    semantics/kind_element_names
+   semantics/spatial
    semantics/convenience
    semantics/legacy
 

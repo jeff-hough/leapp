@@ -251,4 +251,4 @@ Spatial metadata identifies a reference frame and coordinate basis. For example:
 A literal frame name uses ``expressed_in: {frame: world}``; a selector uses
 ``{selector: self}`` or ``{selector: reference}``. Null or missing spatial
 fields mean global. Fields apply according to the quantity; see
-:doc:`semantics/kind_element_names`. Metadata does not transform tensor values.
+:doc:`semantics/spatial`. Metadata does not transform tensor values.

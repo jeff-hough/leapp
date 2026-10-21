@@ -375,7 +375,8 @@ or mixed with raw tensors. See :doc:`/semantics/usage` for examples.
 Axis kinds also accept custom strings. Time axes require a finite, positive
 ``period_ms``; other axis kinds cannot supply a period.
 
-See :doc:`/semantics/kind_element_names` for the ``Kind`` catalog and spatial fields,
+See :doc:`/semantics/kind_element_names` for the ``Kind`` catalog,
+:doc:`/semantics/spatial` for spatial fields,
 :doc:`/semantics/convenience` for helpers and component validation, and
 :ref:`semantics-time-axes` for time axes.
 
