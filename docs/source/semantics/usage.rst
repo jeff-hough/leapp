@@ -43,7 +43,7 @@ Semantic annotations describe four parts of that contract:
   or maintain. For example, a controller may receive both a joint's measured
   position and the position it should move to. Both have the same ``Kind``,
   but the desired-position input uses ``is_setpoint=True`` to distinguish it
-  from the measurement. This flag applies only to inputs.
+  from the measurement. Only inputs may use ``is_setpoint=True``.
 * **Layout:** ``Axis`` identifies the elements, components, or time samples
   along each tensor dimension. A joint-position tensor shaped ``[2, 3]`` could
   describe two robots with three joints each (axes ordered as system, joint),

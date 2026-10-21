@@ -317,9 +317,11 @@ quantity and axis representation. See :doc:`semantics/legacy` for the
 
 ``kind`` describes a quantity, such as ``joint/position`` or ``frame/twist``.
 The ``inputs`` and ``outputs`` lists determine direction. An input with
-``is_setpoint: true`` is an incoming reference. Explicit ``true`` and ``false``
-values are preserved; ``None`` (the default) omits the field. Outputs cannot
-set it to ``true``. See :doc:`semantics/kind_element_names`.
+``is_setpoint: true`` carries a desired value that a controller aims to reach
+or maintain. Explicit ``true`` and ``false`` values are preserved; ``None``
+(the default) omits the field. Outputs accept ``False`` or ``None`` in Python
+but reject ``True``. See :doc:`semantics/usage` for setpoints and
+:doc:`semantics/kind_element_names` for quantities.
 
 ``axes``
 --------

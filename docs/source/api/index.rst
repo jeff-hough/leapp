@@ -348,8 +348,9 @@ Semantic metadata
 * ``axes`` accepts ``None`` or a list of ``Axis`` / ``None`` entries, one per
   tensor dimension. Names must match the dimension size.
 * ``is_setpoint`` accepts ``True``, ``False``, or ``None`` (the default).
-  ``True`` marks an incoming reference and is rejected on outputs. Explicit
-  boolean values are written to YAML; ``None`` leaves the field unspecified and omitted.
+  ``True`` marks an incoming desired value. Outputs accept ``False`` or ``None``
+  but reject ``True``. Explicit boolean values are written to YAML; ``None``
+  leaves the field unspecified and omitted.
 * ``reference`` names the frame against which pose or motion is measured.
 * ``expressed_in`` accepts a literal frame name, ``ExpressionFrame.SELF``,
   ``ExpressionFrame.REFERENCE``, or ``None`` (global).
