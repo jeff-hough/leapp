@@ -2,14 +2,19 @@
 Legacy Semantics API
 ====================
 
-The APIs on this page are **fully supported and are not deprecated**.
-Existing annotations retain their behavior and YAML representation; migration
-is optional. They may coexist with quantity and axis annotations in the same graph or
-annotation list. See :doc:`usage` for quantity and axis annotations.
+.. note::
+
+   This page describes the legacy alternative to the quantity and axis APIs
+   presented in the preceding guides. These legacy APIs are **fully supported
+   and are not deprecated**.
+
+   Updating to the quantity and axis APIs is recommended, but optional.
+   Existing annotations retain their behavior and YAML representation, and
+   both styles can coexist in the same graph or annotation list. See
+   :doc:`usage` to get started with quantity and axis annotations.
 
 Usage
 =====
-
 
 Instead of passing raw tensors, wrap them in ``TensorSemantics`` objects.
 Pass them as a single object or as a list:
@@ -338,25 +343,60 @@ Downstream consumers can find the temporal axis by locating
 Optional migration
 ==================
 
-First confirm that the downstream consumer supports quantity kinds and axis metadata.
-Replace enum kinds with the matching quantity helper or ``Kind``; input/output
-lists now carry direction. Incoming ``COMMAND_*`` references become
-``is_setpoint=True`` inputs. Outputs must not set that flag. Joint torques use
-``joint_effort``; spatial quantities use ``frame_*`` helpers. Verify actual
-coordinate frames and component order before relabeling body quantities.
-Annotations do not convert values or rotate coordinate frames.
+Updating is recommended, but optional. Before changing annotations:
 
-Replace ``element_names`` with ``axes``, supplying one entry per tensor
-dimension and ``None`` for unspecified dimensions. Use
-``Axis(AxisKind.ELEMENT, names=joint_names)`` for joints and
-``Axis(AxisKind.TIME, period_ms=...)`` for temporal metadata. Never supply
-both ``axes`` and ``element_names``. See :doc:`kind_element_names` and
-:ref:`semantics-time-axes` for validation and the resulting YAML.
+* Confirm that the downstream consumer understands quantity kinds and ``axes``.
+* Check the tensor's physical meaning, coordinate frames, and component order.
+  Changing metadata does not convert values, reorder components, or rotate
+  coordinate frames.
+
+Use the following mappings when updating an annotation:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 35 65
+
+   * - Legacy annotation
+     - Quantity and axis annotation
+   * - Direct ``TensorSemantics(...)`` construction
+     - Prefer a matching convenience helper, such as
+       ``joint_position("q", q, axes=...)``; it returns a ``TensorSemantics``
+       object with the quantity already selected.
+   * - ``InputKindEnum`` or ``OutputKindEnum``
+     - Use the matching quantity helper or ``Kind`` member. The input/output
+       registration determines direction.
+   * - Incoming ``COMMAND_*`` kind
+     - Use the matching quantity with ``is_setpoint=True``. This marks an
+       incoming desired value; outputs must not set this flag.
+   * - Joint torque kinds
+     - Use ``joint_effort`` or ``Kind.JOINT_EFFORT``.
+   * - Body pose, position, orientation, or motion kinds
+     - Use the matching ``frame_*`` helper. Check the actual representation
+       before relabeling; a rotation tensor is not automatically a quaternion.
+   * - ``element_names``
+     - Use ``axes`` with one entry per tensor dimension. Use ``None`` for
+       unspecified dimensions. Do not supply both ``axes`` and ``element_names``.
+   * - Joint labels such as ``[joint_names]``
+     - Use ``[Axis(AxisKind.ELEMENT, names=joint_names)]``. For a tensor with
+       an unspecified batch dimension, prepend ``None``.
+   * - ``TemporalAxis(period_ms=...)`` inside ``element_names``
+     - Use ``Axis(AxisKind.TIME, period_ms=...)`` in the corresponding
+       position in ``axes``. Keep the sample period unchanged.
+
+After updating:
+
+* Inspect the exported YAML: consumers must read the quantity kind and ``axes``
+  representation instead of the corresponding legacy fields.
+* Verify that labels still match the tensor's dimensions and value ordering.
+* See :doc:`kind_element_names` for field meanings and YAML examples, and
+  :doc:`convenience` for helper-specific argument and component-name checks.
 
 Updating annotations
 ====================
 
-On a legacy annotation, ``update()`` stores experimental field names as custom
-``extra`` metadata. Construct the annotation with an experimental field or use
-``Kind`` to enable experimental field updates. Quantity and axis annotations
-can coexist with legacy annotations in a graph or annotation list.
+* On a legacy annotation, ``update()`` stores experimental field names as
+  custom ``extra`` metadata; it does not automatically switch interpretation.
+* Construct the annotation with an experimental field or use a ``Kind`` member
+  to enable experimental field updates.
+* Quantity and axis annotations can coexist with legacy annotations in the
+  same graph or annotation list, so you can migrate incrementally.
